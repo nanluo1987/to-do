@@ -1023,7 +1023,7 @@ function App(){
 
   /* ③ On first load: pull from Supabase if cloud is newer than localStorage */
   useEffect(()=>{
-    (async()=>{
+    const pullFromCloud=async()=>{
       try{
         const{data:row,error}=await sb.from('todo_state')
           .select('data,updated_at').eq('id','singleton').maybeSingle();
@@ -1032,11 +1032,9 @@ function App(){
           const localTs=local?._ts?new Date(local._ts):new Date(0);
           const cloudTs=new Date(row.updated_at);
           if(cloudTs>localTs){
-            syncSkip.current++; // don't re-push the data we just pulled
+            syncSkip.current++;
             save(row.data);
             setData(row.data);
-            setSyncStatus('ok');
-            return;
           }
         }
         setSyncStatus('ok');
@@ -1044,7 +1042,11 @@ function App(){
         console.error('Cloud load error:',e);
         setSyncStatus('err');
       }
-    })();
+    };
+
+    pullFromCloud(); // 打开时立即拉取一次
+    const timer=setInterval(pullFromCloud,30000); // 之后每 30 秒检查一次
+    return()=>clearInterval(timer); // 关闭页面时清理
   },[]);
   const update=fn=>setData(d=>({...d,...fn(d)}));
 
