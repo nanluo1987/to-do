@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>To do</title>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#c96442" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="To Do" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+
+<link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<!-- Supabase JS client -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
+<!-- Register Service Worker -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(console.error);
+    });
+  }
+</script>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Source Sans 3','PingFang SC','Microsoft YaHei',sans-serif;background:#f5f4f1;min-height:100vh;color:#1a1714}
+  #root{min-height:100vh}
+  button,input,select,textarea{font-family:inherit}
+  input:focus,select:focus,textarea:focus{outline:2px solid #c96442;outline-offset:0}
+  ::-webkit-scrollbar{width:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#d0ccc6;border-radius:3px}
+  input[type="date"]::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const {useState,useEffect,useMemo,useRef}=React;
+
+/* ═══ Supabase Config ═══
+   ⚠ 在下方填入你的 Supabase 项目 URL 和 anon key（见部署指南步骤 1）
+*/
+const SUPABASE_URL = 'https://hngvytkpgqpczgngafxr.supabase.co'; // ← 替换
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuZ3Z5dGtwZ3FwY3pnbmdhZnhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NjA4NTUsImV4cCI6MjA5NDEzNjg1NX0.86Z-MvwUFMm0sfgcAoo52sY4k_ZeHN-Ms65GgZ-E3M0';                 // ← 替换
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ═══ Constants ═══ */
+const IMP=["very high","high","medium","low","very low"];
+const URG=["very high","high","medium","low","very low"];
+const PROJECTS=["AB菌","水污染","Crack","Pattern","打工"];
+const TTD=["today","this week","this month"];
+
+const LVL_ORD={"very high":0,high:1,medium:2,low:3,"very low":4};
+const LVL_VAL={"very high":2,high:1,medium:0,low:-1,"very low":-2};
+const TTD_ORD={"today":0,"this week":1,"this month":2,"":3};
+
+const LVL_CLR={"very high":"#d94f3d",high:"#e8854a",medium:"#c49a2a",low:"#4f9460","very low":"#7a8fa0"};
+const LVL_BG={"very high":"#fef2f0",high:"#fef6f0",medium:"#fefaf0",low:"#f0faf2","very low":"#f2f5f7"};
+
+const STORE_KEY="todoapp-v2";
+
+/* ═══ Storage ═══ */
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const load=()=>{try{const s=localStorage.getItem(STORE_KEY);return s?JSON.parse(s):null}catch{return null}};
+const save=d=>{try{localStorage.setItem(STORE_KEY,JSON.stringify(d))}catch{}};
+const defState=()=>({tasks:[],todoLists:{today:[],"this week":[],"this month":[]},todoOrder:{today:[],"this week":[],"this month":[]}});
+
+/* ═══ Date helpers: local-time safe ═══ */
+const pad2=n=>String(n).padStart(2,"0");
+const toLocalDateObj=d=>new Date(String(d).replace(" ","T"));
+const parseLocalDateKey=k=>{
+  const [y,m,dd]=k.split("-").map(Number);
+  return new Date(y,m-1,dd);
+};
+const nowLocalISO=()=>{
+  const d=new Date();
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`;
+};
+const localDateKey=d=>{
+  const dt=toLocalDateObj(d);
+  return `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}`;
+};
+const localMonthKey=d=>{
+  const dt=toLocalDateObj(d);
+  return `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}`;
+};
+const fmtDate=d=>{
+  if(!d)return"";
+  const dt=toLocalDateObj(d);
+  return `${dt.getMonth()+1}/${dt.getDate()}`;
+};
+const fmtHour=v=>{
+  if(v===null||v===undefined||v==="")return"";
+  const n=parseFloat(v);
+  return Number.isFinite(n)?n.toFixed(1):"";
+};
+const getWeekKey=d=>{
+  const dt=toLocalDateObj(d);
+  const day=dt.getDay();
+  const m=new Date(dt);
+  m.setDate(dt.getDate()-((day+6)%7));
+  return localDateKey(m);
+};
+const getMonthKey=d=>localMonthKey(d);
+
+/* ═══ Helpers ═══ */
+const mkRef=(tid,sid)=>sid?`${tid}::${sid}`:tid;
+const parseRef=ref=>{const p=ref.split("::");return{taskId:p[0],subtaskId:p[1]||null}};
+
+const maxTtd=subs=>{
+  if(!subs||!subs.length)return"";
+  let mx=-1;
+  subs.forEach(s=>{
+    const v=TTD_ORD[s.timeToDo||""]??3;
+    if(v>mx)mx=v;
+  });
+  return mx===3?"":TTD[mx];
+};
+const sumReqTime=subs=>{
+  if(!subs||!subs.length)return"";
+  let sum=0,any=false;
+  subs.forEach(s=>{
+    if(s.requiredTime!==""&&s.requiredTime!==null&&s.requiredTime!==undefined){
+      const n=parseFloat(s.requiredTime);
+      if(Number.isFinite(n)){sum+=n;any=true;}
+    }
+  });
+  return any?String(Math.round(sum*100)/100):"";
+};
+const sumRequiredTime=items=>{
+  let sum=0;
+  items.forEach(it=>{
+    const n=parseFloat(it.requiredTime);
+    if(Number.isFinite(n))sum+=n;
+  });
+  return (Math.round(sum*10)/10).toFixed(1);
+};
+const taskIsComplete=task=>{
+  if(task.subtasks&&task.subtasks.length>0)return task.subtasks.every(s=>!!s.completedDate);
+  return !!task.completedDate;
+};
+const taskCompletedDate=task=>{
+  if(task.subtasks&&task.subtasks.length>0){
+    if(!task.subtasks.every(s=>s.completedDate))return null;
+    return task.subtasks.reduce((mx,s)=>(!mx||new Date(s.completedDate)>new Date(mx))?s.completedDate:mx,null);
+  }
+  return task.completedDate;
+};
+const effective=task=>{
+  if(task.subtasks&&task.subtasks.length>0){
+    return{
+      ...task,
+      requiredTime:sumReqTime(task.subtasks),
+      timeToDo:maxTtd(task.subtasks),
+      completedDate:taskCompletedDate(task)
+    };
+  }
+  return task;
+};
+
+const buildTodoItems=tasks=>{
+  const items=[];
+  tasks.forEach(t=>{
+    if(t.subtasks&&t.subtasks.length>0){
+      t.subtasks.forEach(s=>{
+        items.push({
+          ref:mkRef(t.id,s.id),
+          taskId:t.id,
+          subtaskId:s.id,
+          displayName:`${t.name}  |  ${s.name}`,
+          name:s.name,
+          taskName:t.name,
+          importance:t.importance,
+          urgency:t.urgency,
+          deadline:t.deadline,
+          project:t.project,
+          requiredTime:s.requiredTime,
+          timeToDo:s.timeToDo||"",
+          completedDate:s.completedDate
+        });
+      });
+    }else{
+      items.push({
+        ref:t.id,
+        taskId:t.id,
+        subtaskId:null,
+        displayName:t.name,
+        name:t.name,
+        taskName:null,
+        importance:t.importance,
+        urgency:t.urgency,
+        deadline:t.deadline,
+        project:t.project,
+        requiredTime:t.requiredTime,
+        timeToDo:t.timeToDo||"",
+        completedDate:t.completedDate
+      });
+    }
+  });
+  return items;
+};
+
+function sortTasks(tasks,by){
+  return[...tasks].sort((a,b)=>{
+    const ae=effective(a),be=effective(b);
+    if(by==="importance")return LVL_ORD[ae.importance]-LVL_ORD[be.importance];
+    if(by==="urgency")return LVL_ORD[ae.urgency]-LVL_ORD[be.urgency];
+    if(by==="deadline"){
+      if(!ae.deadline&&!be.deadline)return 0;
+      if(!ae.deadline)return 1;
+      if(!be.deadline)return -1;
+      return new Date(ae.deadline)-new Date(be.deadline);
+    }
+    if(by==="project")return(ae.project||"zzz").localeCompare(be.project||"zzz");
+    return 0;
+  });
+}
+
+function groupCompleted(tasks,by){
+  const g={};
+  tasks.forEach(t=>{
+    const cd=taskCompletedDate(t);
+    if(!cd)return;
+    const key=by==="week"?getWeekKey(cd):getMonthKey(cd);
+    if(!g[key])g[key]=[];
+    g[key].push(t);
+  });
+  return Object.entries(g).sort((a,b)=>b[0].localeCompare(a[0]));
+}
+function fmtGroupLabel(key,by){
+  if(by==="week"){
+    const d=parseLocalDateKey(key);
+    const e=new Date(d);
+    e.setDate(d.getDate()+6);
+    return`${d.getMonth()+1}/${d.getDate()} – ${e.getMonth()+1}/${e.getDate()}, ${d.getFullYear()}`;
+  }
+  const[y,m]=key.split("-");
+  const M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  return`${M[parseInt(m)-1]} ${y}`;
+}
+
+/* ═══ Shared Styles ═══ */
+const iSt={width:"100%",padding:"9px 11px",border:"1px solid #e0dcd6",borderRadius:8,fontSize:14,color:"#1a1714",background:"#fafaf8"};
+const selSt={...iSt,appearance:"none",cursor:"pointer"};
+const btnP={background:"#c96442",color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",fontSize:14,fontWeight:700,cursor:"pointer"};
+const btnS={background:"#f0ece6",color:"#4a4540",border:"none",borderRadius:10,padding:"10px 22px",fontSize:14,fontWeight:600,cursor:"pointer"};
+
+/* ═══ Icons / Atoms ═══ */
+function SvgIcon({type,color="#8a8580",size=12}){
+  if(type==="importance"){
+    return(
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 4v10" stroke={color} strokeWidth="4" strokeLinecap="round"/>
+        <circle cx="12" cy="19" r="2.25" fill={color}/>
+      </svg>
+    );
+  }
+  if(type==="urgency"){
+    return(
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M13.5 2.5L4.5 14h7L10 21.5 20 9h-7l.5-6.5z" fill={color}/>
+      </svg>
+    );
+  }
+  return(
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="8.5" stroke={color} strokeWidth="2.4"/>
+      <path d="M12 7v5l3.5 2" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+function Badge({level,type}){
+  const color=LVL_CLR[level]||"#8a8580";
+  return(
+    <span style={{
+      display:"inline-flex",
+      alignItems:"center",
+      justifyContent:"left",
+      gap:4,
+      fontSize:11,
+      fontWeight:600,
+      padding:"2px 8px",
+      borderRadius:99,
+      background:LVL_BG[level]||"#f2f2f2",
+      color,
+      width:82,
+      flexShrink:0,
+      whiteSpace:"nowrap"
+    }}>
+      <SvgIcon type={type==="i"?"importance":"urgency"} color={color} size={11}/>
+      {level}
+    </span>
+  );
+}
+
+function TimeLabel({value,color="#8a8580"}){
+  const v=fmtHour(value);
+  if(!v)return null;
+  return(
+    <span style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:11,color,fontWeight:500}}>
+      <SvgIcon type="time" color={color} size={11}/>
+      {v}h
+    </span>
+  );
+}
+
+function ProjectLabel({project}){
+  if(!project)return null;
+  return(
+    <span style={{fontSize:11,fontWeight:600,color:"#6b6560"}}>
+      {project}
+    </span>
+  );
+}
+
+function Pill({active,onClick,children}){
+  return(
+    <button onClick={onClick} style={{
+      background:active?"#1a1714":"#edeae4",
+      color:active?"#fff":"#6b6560",
+      border:"none",
+      borderRadius:99,
+      padding:"6px 14px",
+      fontSize:12,
+      fontWeight:700,
+      cursor:"pointer",
+      transition:"all .15s"
+    }}>{children}</button>
+  );
+}
+
+function SectionLabel({children,count}){
+  return(
+    <div style={{fontSize:11,fontWeight:700,color:"#8a8580",marginBottom:10,marginTop:4,textTransform:"uppercase",letterSpacing:.6,display:"flex",alignItems:"center",gap:6}}>
+      {children}{count!=null&&<span style={{fontWeight:500}}>· {count}</span>}
+    </div>
+  );
+}
+
+function Field({label,children}){
+  return(
+    <div style={{marginBottom:14}}>
+      <label style={{fontSize:11,fontWeight:700,color:"#8a8580",display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:.5}}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+function Checkbox({checked,onClick,size}){
+  const sz=size||20;
+  return(
+    <div onClick={e=>{e.stopPropagation();onClick?.();}} style={{
+      width:sz,height:sz,minWidth:sz,borderRadius:sz>18?6:5,cursor:"pointer",flexShrink:0,
+      border:checked?"none":"2px solid #c4bfb6",
+      background:checked?"#c96442":"transparent",
+      display:"flex",alignItems:"center",justifyContent:"center",
+      transition:"all .15s"
+    }}>
+      {checked&&(
+        <svg width={sz*.6} height={sz*.6} viewBox="0 0 12 12" fill="none">
+          <path d="M2.5 6L5 8.5L9.5 3.5" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )}
+    </div>
+  );
+}
+
+/* ═══ Card Layout ═══ */
+function TodoCard({item,onClick,showCheck,checked,onCheck,dimmed}){
+  const[hover,setHover]=useState(false);
+  return(
+    <div onClick={onClick} onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} style={{
+      background:dimmed?"#f6f5f2":"#fff",
+      border:`1px solid ${hover&&!dimmed?"#c4bfb6":"#e8e5e0"}`,
+      borderRadius:12,
+      padding:"12px 14px",
+      cursor:"pointer",
+      display:"flex",
+      alignItems:"flex-start",
+      gap:11,
+      opacity:dimmed?.58:1,
+      transition:"border-color .15s,opacity .2s"
+    }}>
+      {showCheck&&<div style={{marginTop:2}}><Checkbox checked={checked} onClick={onCheck}/></div>}
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,marginBottom:7}}>
+          <div style={{
+            fontSize:14,
+            fontWeight:600,
+            color:"#1a1714",
+            minWidth:0,
+            flex:1,
+            textDecoration:dimmed?"line-through":"none",
+            textDecorationColor:"#a09a90"
+          }}>
+            {item.taskName
+              ?(
+                <>
+                  <span style={{color:"#1a1714",fontWeight:600}}>{item.taskName}</span>
+                  <span style={{color:"#ccc",margin:"0 7px",fontWeight:400}}>|</span>
+                  <span>{item.name}</span>
+                </>
+              )
+              :item.displayName}
+          </div>
+          <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}>
+            <Badge level={item.importance} type="i"/>
+            <Badge level={item.urgency} type="u"/>
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <TimeLabel value={item.requiredTime}/>
+          <ProjectLabel project={item.project}/>
+          {item.deadline&&<span style={{fontSize:11,color:"#8a8580"}}>📅 {fmtDate(item.deadline)}</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AllTaskCard({task,onEdit,onToggleSub}){
+  const[expanded,setExpanded]=useState(false);
+  const eff=effective(task);
+  const done=taskIsComplete(task);
+  const hasSubs=task.subtasks&&task.subtasks.length>0;
+
+  return(
+    <div style={{borderRadius:12,border:"1px solid #e8e5e0",overflow:"hidden"}}>
+      <div onClick={()=>onEdit(task)} style={{
+        background:done?"#f6f5f2":"#fff",
+        padding:"13px 15px",
+        cursor:"pointer",
+        opacity:done?.58:1,
+        borderBottom:expanded&&hasSubs?"1px solid #f0ece6":"none"
+      }}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,marginBottom:7}}>
+          <div style={{
+            display:"flex",
+            alignItems:"center",
+            gap:6,
+            flex:1,
+            minWidth:0,
+            fontSize:14,
+            fontWeight:600,
+            color:"#1a1714",
+            textDecoration:done?"line-through":"none",
+            textDecorationColor:"#a09a90"
+          }}>
+            <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.name}</span>
+            {hasSubs&&(
+              <button onClick={e=>{e.stopPropagation();setExpanded(x=>!x);}} style={{
+                background:"none",
+                border:"none",
+                cursor:"pointer",
+                fontSize:18,
+                color:"#1a1714",
+                padding:"0 3px",
+                lineHeight:1,
+                transform:expanded?"rotate(90deg)":"rotate(0deg)",
+                transition:"transform .2s",
+                flexShrink:0
+              }}>›</button>
+            )}
+          </div>
+          <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}>
+            <Badge level={eff.importance} type="i"/>
+            <Badge level={eff.urgency} type="u"/>
+          </div>
+        </div>
+
+        <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+          <TimeLabel value={eff.requiredTime}/>
+          <ProjectLabel project={eff.project}/>
+          {eff.deadline&&<span style={{fontSize:11,color:"#8a8580"}}>📅 {fmtDate(eff.deadline)}</span>}
+        </div>
+      </div>
+
+      {expanded&&hasSubs&&(
+        <div style={{background:"#fafaf8",padding:"8px 12px 10px"}}>
+          {task.subtasks.map(s=>{
+            const sDone=!!s.completedDate;
+            return(
+              <div key={s.id} style={{
+                padding:"9px 10px",
+                borderRadius:8,
+                marginBottom:4,
+                background:"#fff",
+                border:"1px solid #f0ece6",
+                opacity:sDone?.52:1
+              }}>
+                <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+                  <Checkbox checked={sDone} onClick={()=>onToggleSub(task.id,s.id)} size={18}/>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,marginBottom:5}}>
+                      <div style={{
+                        flex:1,
+                        minWidth:0,
+                        fontSize:13,
+                        fontWeight:600,
+                        color:"#1a1714",
+                        textDecoration:sDone?"line-through":"none",
+                        textDecorationColor:"#a09a90"
+                      }}>
+                        <span style={{color:"#1a1714",fontWeight:600}}>{task.name}</span>
+                        <span style={{color:"#ccc",margin:"0 7px",fontWeight:400}}>|</span>
+                        <span>{s.name}</span>
+                      </div>
+                      <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}>
+                        <Badge level={eff.importance} type="i"/>
+                        <Badge level={eff.urgency} type="u"/>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+                      <TimeLabel value={s.requiredTime} color="#a09a90"/>
+                      <ProjectLabel project={eff.project}/>
+                      {s.timeToDo&&<span style={{fontSize:10,color:"#8a8580",fontWeight:600}}>{s.timeToDo}</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══ Matrix ═══ */
+function MatrixView({tasks}){
+  const grouped={};
+
+  tasks.forEach(t=>{
+    const e=effective(t);
+    const x=LVL_VAL[e.importance]??0;
+    const y=LVL_VAL[e.urgency]??0;
+    const key=`${x},${y}`;
+    if(!grouped[key])grouped[key]=[];
+    grouped[key].push({task:t,e,x,y});
+  });
+
+  const points=[];
+  Object.values(grouped).forEach(group=>{
+    group.forEach((p,i)=>{
+      const center=(group.length-1)/2;
+      const labelOffset=(i-center)*20;
+      points.push({...p,labelOffset});
+    });
+  });
+
+  const AxisLabel=({children,style})=>(
+    <div style={{
+      position:"absolute",
+      fontSize:11,
+      color:"#8a8580",
+      fontWeight:700,
+      letterSpacing:.2,
+      ...style
+    }}>
+      {children}
+    </div>
+  );
+
+  return(
+    <div style={{background:"#fff",border:"1px solid #e8e5e0",borderRadius:14,padding:14}}>
+      <div style={{
+        position:"relative",
+        height:360,
+        border:"1px solid #e0dcd6",
+        borderRadius:12,
+        background:"#fafaf8",
+        overflow:"hidden"
+      }}>
+        <div style={{
+          position:"absolute",
+          left:"50%",
+          top:0,
+          bottom:0,
+          width:1,
+          background:"#d8d2ca"
+        }}/>
+        <div style={{
+          position:"absolute",
+          top:"50%",
+          left:0,
+          right:0,
+          height:1,
+          background:"#d8d2ca"
+        }}/>
+
+        <AxisLabel style={{left:"calc(50% + 8px)",top:8}}>
+          urgency <span style={{fontWeight:700}}>↑</span>
+        </AxisLabel>
+
+        <AxisLabel style={{right:10,top:"calc(50% + 8px)"}}>
+          importance <span style={{fontWeight:700}}>→</span>
+        </AxisLabel>
+
+        {points.map((p,i)=>{
+          const left=50+(p.x/2)*42;
+          const top=50-(p.y/2)*42;
+
+          return(
+            <div key={p.task.id} style={{
+              position:"absolute",
+              left:`${left}%`,
+              top:`${top}%`,
+              transform:"translate(-7px,-7px)",
+              display:"flex",
+              alignItems:"center",
+              gap:5,
+              zIndex:10+i
+            }}>
+              <span style={{
+                width:14,
+                height:14,
+                borderRadius:"50%",
+                background:"#c96442",
+                border:"2px solid #fff",
+                boxShadow:"0 1px 4px rgba(0,0,0,.18)",
+                flexShrink:0
+              }}/>
+              <span style={{
+                fontSize:11,
+                fontWeight:600,
+                color:"#4a4540",
+                background:"rgba(255,255,255,.9)",
+                padding:"1px 5px",
+                borderRadius:6,
+                whiteSpace:"nowrap",
+                boxShadow:"0 1px 3px rgba(0,0,0,.06)",
+                transform:`translateY(${p.labelOffset}px)`,
+                display:"inline-block"
+              }}>
+                {p.task.name}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ═══ Modal ═══ */
+function Modal({open,onClose,title,width,children}){
+  useEffect(()=>{
+    const fn=e=>{if(e.key==="Escape")onClose()};
+    if(open)document.addEventListener("keydown",fn);
+    return()=>document.removeEventListener("keydown",fn);
+  },[open]);
+
+  if(!open)return null;
+
+  return(
+    <div onClick={onClose} style={{
+      position:"fixed",inset:0,zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",
+      background:"rgba(0,0,0,.28)",backdropFilter:"blur(4px)"
+    }}>
+      <div onClick={e=>e.stopPropagation()} style={{
+        background:"#fff",
+        borderRadius:18,
+        width:width||460,
+        maxWidth:"93vw",
+        maxHeight:"88vh",
+        overflow:"auto",
+        boxShadow:"0 24px 64px rgba(0,0,0,.14)"
+      }}>
+        <div style={{padding:"22px 24px 0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <h3 style={{margin:0,fontSize:17,fontWeight:700,color:"#1a1714"}}>{title}</h3>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"#a09a90",padding:4,lineHeight:1}}>✕</button>
+        </div>
+        <div style={{padding:"16px 24px 24px"}}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══ Task Form ═══ */
+function TaskForm({task,onSave,onDelete,onClose}){
+  const[f,setF]=useState(()=>{
+    if(task)return{...task,subtasks:task.subtasks?task.subtasks.map(s=>({...s})):[]};
+    return{name:"",importance:"medium",urgency:"medium",deadline:"",requiredTime:"",project:"",timeToDo:"",subtasks:[]};
+  });
+
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const hasSubs=f.subtasks.length>0;
+  const valid=f.name.trim().length>0;
+
+  const addSub=()=>set("subtasks",[...f.subtasks,{id:uid(),name:"",requiredTime:"",timeToDo:"",completedDate:null}]);
+  const updateSub=(idx,k,v)=>{
+    const s=[...f.subtasks];
+    s[idx]={...s[idx],[k]:v};
+    set("subtasks",s);
+  };
+  const removeSub=idx=>{
+    const s=[...f.subtasks];
+    s.splice(idx,1);
+    set("subtasks",s);
+  };
+
+  return(
+    <div>
+      <Field label="Name">
+        <input style={iSt} value={f.name} onChange={e=>set("name",e.target.value)} placeholder="Task name…" autoFocus/>
+      </Field>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <Field label="Importance">
+          <select style={selSt} value={f.importance} onChange={e=>set("importance",e.target.value)}>
+            {IMP.map(l=><option key={l} value={l}>{l}</option>)}
+          </select>
+        </Field>
+        <Field label="Urgency">
+          <select style={selSt} value={f.urgency} onChange={e=>set("urgency",e.target.value)}>
+            {URG.map(l=><option key={l} value={l}>{l}</option>)}
+          </select>
+        </Field>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <Field label="Deadline">
+          <input style={iSt} type="date" value={f.deadline||""} onChange={e=>set("deadline",e.target.value)}/>
+        </Field>
+        <Field label="Project">
+          <select style={selSt} value={f.project||""} onChange={e=>set("project",e.target.value)}>
+            <option value="">None</option>
+            {PROJECTS.map(p=><option key={p} value={p}>{p}</option>)}
+          </select>
+        </Field>
+      </div>
+
+      {!hasSubs&&(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <Field label="Required Time (h)">
+            <input style={iSt} type="number" min="0" step="0.5" value={f.requiredTime||""} onChange={e=>set("requiredTime",e.target.value)} placeholder="e.g. 2"/>
+          </Field>
+          <Field label="Time to do">
+            <select style={selSt} value={f.timeToDo||""} onChange={e=>set("timeToDo",e.target.value)}>
+              <option value="">None</option>
+              {TTD.map(t=><option key={t} value={t}>{t}</option>)}
+            </select>
+          </Field>
+        </div>
+      )}
+
+      <div style={{marginTop:2,marginBottom:14}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <span style={{fontSize:11,fontWeight:700,color:"#8a8580",textTransform:"uppercase",letterSpacing:.5}}>
+            Subtasks{hasSubs?` (${f.subtasks.length})`:""}
+          </span>
+          <button onClick={addSub} style={{...btnS,padding:"4px 12px",fontSize:12,borderRadius:8}}>+ Subtask</button>
+        </div>
+
+        {hasSubs&&(
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {f.subtasks.map((s,i)=>(
+              <div key={s.id} style={{border:"1px solid #e8e5e0",borderRadius:10,padding:"10px 12px",background:"#fafaf8"}}>
+                <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
+                  <input style={{...iSt,flex:1,fontSize:13,padding:"7px 9px"}} value={s.name} onChange={e=>updateSub(i,"name",e.target.value)} placeholder="Subtask name…"/>
+                  <button onClick={()=>removeSub(i)} style={{background:"none",border:"none",cursor:"pointer",fontSize:15,color:"#c4bfb6",padding:"0 4px",flexShrink:0}}>✕</button>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                  <div>
+                    <label style={{fontSize:10,fontWeight:600,color:"#a09a90",display:"block",marginBottom:3}}>REQUIRED TIME (H)</label>
+                    <input style={{...iSt,fontSize:12,padding:"6px 8px"}} type="number" min="0" step="0.5" value={s.requiredTime||""} onChange={e=>updateSub(i,"requiredTime",e.target.value)} placeholder="e.g. 1"/>
+                  </div>
+                  <div>
+                    <label style={{fontSize:10,fontWeight:600,color:"#a09a90",display:"block",marginBottom:3}}>TIME TO DO</label>
+                    <select style={{...selSt,fontSize:12,padding:"6px 8px"}} value={s.timeToDo||""} onChange={e=>updateSub(i,"timeToDo",e.target.value)}>
+                      <option value="">None</option>
+                      {TTD.map(t=><option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div style={{fontSize:12,color:"#a09a90",display:"flex",gap:14,marginTop:2}}>
+              <span>Total: <b style={{color:"#6b6560"}}>{fmtHour(sumReqTime(f.subtasks))||"–"}h</b></span>
+              <span>Time to do: <b style={{color:"#6b6560"}}>{maxTtd(f.subtasks)||"none"}</b></span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{display:"flex",gap:10,justifyContent:"flex-end",alignItems:"center",borderTop:"1px solid #f0ece6",paddingTop:16}}>
+        {task&&onDelete&&(
+          <button style={{...btnS,color:"#c94040",marginRight:"auto"}} onClick={()=>onDelete(task.id)}>Delete</button>
+        )}
+        <button style={btnS} onClick={onClose}>Cancel</button>
+        <button style={{...btnP,opacity:valid?1:.4}} onClick={()=>valid&&onSave(f)} disabled={!valid}>Save</button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══ Edit Todo Modal ═══ */
+function EditTodoModal({open,onClose,period,tasks,todoLists,todoOrder,onUpdate}){
+  const[lists,setLists]=useState({});
+  const[orders,setOrders]=useState({});
+  const[addOpen,setAddOpen]=useState(true);
+  const[dragIdx,setDragIdx]=useState(null);
+  const[dragOver,setDragOver]=useState(null);
+
+  useEffect(()=>{
+    setLists({
+      today:[...(todoLists.today||[])],
+      "this week":[...(todoLists["this week"]||[])],
+      "this month":[...(todoLists["this month"]||[])]
+    });
+    setOrders({
+      today:[...(todoOrder.today||[])],
+      "this week":[...(todoOrder["this week"]||[])],
+      "this month":[...(todoOrder["this month"]||[])]
+    });
+    setAddOpen(true);
+  },[open]);
+
+  const allItems=useMemo(()=>buildTodoItems(tasks),[tasks]);
+  const currentRefs=lists[period]||[];
+  const available=allItems.filter(it=>!currentRefs.includes(it.ref)&&!it.completedDate);
+
+  const addItem=ref=>{
+    const nl={...lists},no={...orders};
+    const push=(r,p)=>{
+      if(!(nl[p]||[]).includes(r)){
+        nl[p]=[...(nl[p]||[]),r];
+        no[p]=[...(no[p]||[]),r];
+      }
+    };
+    if(period==="today")["today","this week","this month"].forEach(p=>push(ref,p));
+    else if(period==="this week")["this week","this month"].forEach(p=>push(ref,p));
+    else push(ref,"this month");
+    setLists(nl);
+    setOrders(no);
+    setAddOpen(false);
+  };
+
+  const removeItem=ref=>{
+    const nl={...lists},no={...orders};
+    const rm=(r,p)=>{
+      nl[p]=(nl[p]||[]).filter(i=>i!==r);
+      no[p]=(no[p]||[]).filter(i=>i!==r);
+    };
+    if(period==="this month")["today","this week","this month"].forEach(p=>rm(ref,p));
+    else if(period==="this week")["today","this week"].forEach(p=>rm(ref,p));
+    else rm(ref,"today");
+    setLists(nl);
+    setOrders(no);
+  };
+
+  const moveItem=(from,to)=>{
+    const arr=[...(orders[period]||[])];
+    const[item]=arr.splice(from,1);
+    arr.splice(to,0,item);
+    setOrders({...orders,[period]:arr});
+  };
+
+  const orderedRefs=useMemo(()=>{
+    const o=(orders[period]||[]).filter(r=>currentRefs.includes(r));
+    currentRefs.forEach(r=>{if(!o.includes(r))o.push(r)});
+    return o;
+  },[orders,currentRefs,period]);
+
+  const findItem=ref=>allItems.find(it=>it.ref===ref);
+
+  return(
+    <Modal open={open} onClose={onClose} title={`Edit — ${period}`} width={500}>
+      <div style={{marginBottom:16}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <span style={{fontSize:13,fontWeight:600,color:"#6b6560"}}>Tasks ({orderedRefs.length})</span>
+          <button style={{...btnS,padding:"6px 14px",fontSize:12}} onClick={()=>setAddOpen(a=>!a)}>+ Add</button>
+        </div>
+
+        {addOpen&&(
+          <div style={{border:"1px solid #e8e5e0",borderRadius:10,padding:10,marginBottom:12,maxHeight:220,overflow:"auto",background:"#fafaf8"}}>
+            {available.length===0
+              ?<div style={{fontSize:13,color:"#a09a90",textAlign:"center",padding:"12px 0"}}>No tasks to add</div>
+              :available.map(it=>(
+                <div key={it.ref} onClick={()=>addItem(it.ref)} style={{padding:"8px 10px",borderRadius:8,cursor:"pointer",fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="#f0ece6"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <span style={{color:"#1a1714"}}>{it.displayName}</span>
+                  <span style={{fontSize:11,color:"#8a8580"}}>{it.project||""}</span>
+                </div>
+              ))}
+          </div>
+        )}
+
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {orderedRefs.map((ref,idx)=>{
+            const it=findItem(ref);
+            return(
+              <div key={ref} draggable
+                onDragStart={()=>setDragIdx(idx)}
+                onDragOver={e=>{e.preventDefault();setDragOver(idx);}}
+                onDrop={()=>{if(dragIdx!=null&&dragIdx!==idx)moveItem(dragIdx,idx);setDragIdx(null);setDragOver(null);}}
+                onDragEnd={()=>{setDragIdx(null);setDragOver(null);}}
+                style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:dragOver===idx?"#f5f0ea":"#fff",border:"1px solid #e8e5e0",borderRadius:10,cursor:"grab"}}>
+                <span style={{color:"#c4bfb6",fontSize:15,userSelect:"none"}}>⠿</span>
+                <span style={{flex:1,fontSize:13,fontWeight:500,color:"#1a1714",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{it?it.displayName:ref}</span>
+                {it&&it.project&&<span style={{fontSize:11,color:"#8a8580",flexShrink:0}}>{it.project}</span>}
+                <button onClick={()=>removeItem(ref)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#c4bfb6",padding:2,flexShrink:0}}>✕</button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+        <button style={btnS} onClick={onClose}>Cancel</button>
+        <button style={btnP} onClick={()=>{onUpdate(lists,orders);onClose();}}>Save</button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ═══ Import / Export ═══ */
+function ImportExportModal({open,onClose,data,onImport}){
+  const[mode,setMode]=useState("export");
+  const[text,setText]=useState("");
+  const[copied,setCopied]=useState(false);
+  const json=JSON.stringify(data,null,2);
+
+  return(
+    <Modal open={open} onClose={onClose} title="Import / Export" width={520}>
+      <div style={{display:"flex",gap:6,marginBottom:16}}>
+        {["export","import"].map(m=>(
+          <button key={m} onClick={()=>setMode(m)} style={{...btnS,padding:"6px 18px",fontSize:13,background:mode===m?"#1a1714":"#f0ece6",color:mode===m?"#fff":"#4a4540"}}>
+            {m==="export"?"Export":"Import"}
+          </button>
+        ))}
+      </div>
+
+      {mode==="export"?(
+        <>
+          <textarea readOnly value={json} style={{...iSt,height:200,resize:"vertical",fontSize:11,fontFamily:"monospace"}}/>
+          <div style={{display:"flex",gap:8,marginTop:12}}>
+            <button style={btnP} onClick={()=>{
+              navigator.clipboard.writeText(json).then(()=>{
+                setCopied(true);
+                setTimeout(()=>setCopied(false),2000);
+              });
+            }}>{copied?"Copied!":"Copy"}</button>
+            <button style={btnS} onClick={()=>{
+              const a=document.createElement("a");
+              a.href="data:application/json;charset=utf-8,"+encodeURIComponent(json);
+              a.download="todo-export.json";
+              a.click();
+            }}>Download</button>
+          </div>
+        </>
+      ):(
+        <>
+          <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Paste JSON…" style={{...iSt,height:200,resize:"vertical",fontSize:11,fontFamily:"monospace"}}/>
+          <button style={{...btnP,marginTop:12,opacity:text.trim()?1:.4}} disabled={!text.trim()} onClick={()=>{
+            try{
+              const p=JSON.parse(text);
+              if(p.tasks&&p.todoLists&&p.todoOrder){
+                onImport(p);
+                onClose();
+              }else alert("格式不正确");
+            }catch{
+              alert("JSON 解析失败");
+            }
+          }}>Import</button>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+/* ═══════════ MAIN APP ═══════════ */
+function App(){
+  const[data,setData]=useState(()=>load()||defState());
+  const[mainTab,setMainTab]=useState("todo");
+  const[allSub,setAllSub]=useState("active");
+  const[todoSub,setTodoSub]=useState("today");
+  const[sortBy,setSortBy]=useState("importance");
+  const[showMatrix,setShowMatrix]=useState(false);
+  const[compView,setCompView]=useState("week");
+  const[showForm,setShowForm]=useState(false);
+  const[editTask,setEditTask]=useState(null);
+  const[showImport,setShowImport]=useState(false);
+  const[showEditTodo,setShowEditTodo]=useState(false);
+
+  /* ── Cloud sync state ── */
+  const[syncStatus,setSyncStatus]=useState('init'); // 'init'|'syncing'|'ok'|'err'
+  const syncSkip=useRef(1);  // skip the first useEffect trigger (initial render)
+  const syncTimer=useRef(null);
+
+  /* ① Save to localStorage on every change (original behavior, unchanged) */
+  useEffect(()=>{save(data)},[data]);
+
+  /* ② Debounced push to Supabase on every data change */
+  useEffect(()=>{
+    if(syncSkip.current>0){syncSkip.current--;return;}
+    setSyncStatus('syncing');
+    clearTimeout(syncTimer.current);
+    syncTimer.current=setTimeout(async()=>{
+      try{
+        const snap={...data,_ts:new Date().toISOString()};
+        save(snap);
+        await sb.from('todo_state').upsert({id:'singleton',data:snap,updated_at:new Date().toISOString()});
+        setSyncStatus('ok');
+      }catch(e){
+        console.error('Sync error:',e);
+        setSyncStatus('err');
+      }
+    },2000);
+  },[data]);
+
+  /* ③ On first load: pull from Supabase if cloud is newer than localStorage */
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const{data:row,error}=await sb.from('todo_state')
+          .select('data,updated_at').eq('id','singleton').maybeSingle();
+        if(!error&&row){
+          const local=load();
+          const localTs=local?._ts?new Date(local._ts):new Date(0);
+          const cloudTs=new Date(row.updated_at);
+          if(cloudTs>localTs){
+            syncSkip.current++; // don't re-push the data we just pulled
+            save(row.data);
+            setData(row.data);
+            setSyncStatus('ok');
+            return;
+          }
+        }
+        setSyncStatus('ok');
+      }catch(e){
+        console.error('Cloud load error:',e);
+        setSyncStatus('err');
+      }
+    })();
+  },[]);
+  const update=fn=>setData(d=>({...d,...fn(d)}));
+
+  const syncRefs=(oldTask,newTask,lists,orders)=>{
+    const nl={...lists},no={...orders};
+    const rm=ref=>["today","this week","this month"].forEach(p=>{
+      nl[p]=(nl[p]||[]).filter(r=>r!==ref);
+      no[p]=(no[p]||[]).filter(r=>r!==ref);
+    });
+    const add=(ref,ttd)=>{
+      const push=(r,p)=>{
+        if(!(nl[p]||[]).includes(r)){
+          nl[p]=[...(nl[p]||[]),r];
+          no[p]=[...(no[p]||[]),r];
+        }
+      };
+      if(ttd==="today")["today","this week","this month"].forEach(p=>push(ref,p));
+      else if(ttd==="this week")["this week","this month"].forEach(p=>push(ref,p));
+      else if(ttd==="this month")push(ref,"this month");
+    };
+
+    if(oldTask){
+      if(oldTask.subtasks&&oldTask.subtasks.length>0)oldTask.subtasks.forEach(s=>rm(mkRef(oldTask.id,s.id)));
+      else rm(oldTask.id);
+    }
+
+    if(newTask.subtasks&&newTask.subtasks.length>0){
+      newTask.subtasks.forEach(s=>{
+        if(!s.completedDate)add(mkRef(newTask.id,s.id),s.timeToDo||"");
+      });
+    }else{
+      if(!newTask.completedDate)add(newTask.id,newTask.timeToDo||"");
+    }
+
+    return{todoLists:nl,todoOrder:no};
+  };
+
+  const saveTask=form=>{
+    update(d=>{
+      const tasks=[...d.tasks];
+      let lists={
+        today:[...(d.todoLists.today||[])],
+        "this week":[...(d.todoLists["this week"]||[])],
+        "this month":[...(d.todoLists["this month"]||[])]
+      };
+      let orders={
+        today:[...(d.todoOrder.today||[])],
+        "this week":[...(d.todoOrder["this week"]||[])],
+        "this month":[...(d.todoOrder["this month"]||[])]
+      };
+      let oldTask=null;
+
+      if(form.id){
+        const idx=tasks.findIndex(t=>t.id===form.id);
+        if(idx>=0){
+          oldTask={...tasks[idx],subtasks:tasks[idx].subtasks?tasks[idx].subtasks.map(s=>({...s})):[]};
+          let cd=form.completedDate;
+          if(form.subtasks&&form.subtasks.length>0){
+            const allDone=form.subtasks.every(s=>!!s.completedDate);
+            cd=allDone?(cd||nowLocalISO()):null;
+          }
+          tasks[idx]={...form,completedDate:cd};
+        }
+      }else{
+        const id=uid();
+        form={...form,id,completedDate:null};
+        tasks.push(form);
+      }
+
+      const nt=tasks.find(t=>t.id===form.id);
+      const s=syncRefs(oldTask,nt,lists,orders);
+      return{tasks,...s};
+    });
+
+    setShowForm(false);
+    setEditTask(null);
+  };
+
+  const deleteTask=id=>{
+    update(d=>{
+      const t=d.tasks.find(x=>x.id===id);
+      const nl={...d.todoLists},no={...d.todoOrder};
+      const rm=ref=>["today","this week","this month"].forEach(p=>{
+        nl[p]=(nl[p]||[]).filter(r=>r!==ref);
+        no[p]=(no[p]||[]).filter(r=>r!==ref);
+      });
+
+      if(t){
+        if(t.subtasks&&t.subtasks.length>0)t.subtasks.forEach(s=>rm(mkRef(id,s.id)));
+        else rm(id);
+      }
+
+      return{tasks:d.tasks.filter(x=>x.id!==id),todoLists:nl,todoOrder:no};
+    });
+
+    setShowForm(false);
+    setEditTask(null);
+  };
+
+  const toggleRef=ref=>{
+    const{taskId,subtaskId}=parseRef(ref);
+    update(d=>({tasks:d.tasks.map(t=>{
+      if(t.id!==taskId)return t;
+      if(subtaskId){
+        const subs=(t.subtasks||[]).map(s=>s.id===subtaskId
+          ?(s.completedDate?{...s,completedDate:null}:{...s,completedDate:nowLocalISO()})
+          :s
+        );
+        const allDone=subs.every(s=>!!s.completedDate);
+        return{...t,subtasks:subs,completedDate:allDone?nowLocalISO():null};
+      }
+      return t.completedDate?{...t,completedDate:null}:{...t,completedDate:nowLocalISO()};
+    })}));
+  };
+
+  const toggleSubAll=(taskId,subId)=>{
+    update(d=>({tasks:d.tasks.map(t=>{
+      if(t.id!==taskId)return t;
+      const subs=(t.subtasks||[]).map(s=>s.id===subId
+        ?(s.completedDate?{...s,completedDate:null}:{...s,completedDate:nowLocalISO()})
+        :s
+      );
+      const allDone=subs.every(s=>!!s.completedDate);
+      return{...t,subtasks:subs,completedDate:allDone?nowLocalISO():null};
+    })}));
+  };
+
+  const getTodoItems=period=>{
+    const{tasks,todoLists,todoOrder}=data;
+    const ids=todoLists[period]||[];
+    const ord=todoOrder[period]||[];
+    let ordered;
+
+    if(period==="this week"){
+      const t=(todoOrder["today"]||[]).filter(r=>ids.includes(r));
+      ordered=[...t,...ord.filter(r=>!t.includes(r)&&ids.includes(r))];
+    }else if(period==="this month"){
+      const w=(todoOrder["this week"]||[]).filter(r=>ids.includes(r));
+      const t=(todoOrder["today"]||[]).filter(r=>w.includes(r));
+      const wOnly=w.filter(r=>!t.includes(r));
+      ordered=[...t,...wOnly,...ord.filter(r=>!w.includes(r)&&ids.includes(r))];
+    }else{
+      ordered=ord.filter(r=>ids.includes(r));
+    }
+
+    ids.forEach(r=>{if(!ordered.includes(r))ordered.push(r)});
+    const all=buildTodoItems(tasks);
+    return ordered.map(ref=>{
+      const it=all.find(x=>x.ref===ref);
+      return it?{...it,_ref:ref}:null;
+    }).filter(Boolean);
+  };
+
+  const{tasks,todoLists,todoOrder}=data;
+  const activeTasks=tasks.filter(t=>!taskIsComplete(t));
+  const completedTasks=tasks.filter(t=>taskIsComplete(t));
+
+  return(
+    <div style={{maxWidth:640,margin:"0 auto",minHeight:"100vh",background:"#fafaf8",position:"relative",paddingBottom:80}}>
+      <div style={{padding:"18px 20px 0",display:"flex",borderBottom:"1px solid #e8e5e0",position:"sticky",top:0,background:"#fafaf8",zIndex:50,alignItems:"flex-end"}}>
+        <div style={{display:"flex",flex:1}}>
+        {[["todo","To do"],["all","All tasks"]].map(([tab,label])=>(
+          <button key={tab} onClick={()=>setMainTab(tab)} style={{
+            background:"none",
+            border:"none",
+            borderBottom:mainTab===tab?"2.5px solid #c96442":"2.5px solid transparent",
+            padding:"7px 20px 11px",
+            fontSize:15,
+            fontWeight:mainTab===tab?700:500,
+            color:mainTab===tab?"#1a1714":"#9a9590",
+            cursor:"pointer"
+          }}>{label}</button>
+        ))}
+        </div>
+        {/* Sync status indicator */}
+        <div title={syncStatus==='ok'?'已同步':syncStatus==='syncing'?'同步中…':syncStatus==='err'?'同步失败':'连接中…'}
+          style={{marginBottom:12,marginRight:4,width:8,height:8,borderRadius:"50%",flexShrink:0,
+            background:syncStatus==='ok'?'#4f9460':syncStatus==='syncing'?'#c49a2a':syncStatus==='err'?'#d94f3d':'#c4bfb6',
+            transition:'background .4s',
+            boxShadow:syncStatus==='syncing'?'0 0 0 2px rgba(196,154,42,.3)':
+                       syncStatus==='err'?'0 0 0 2px rgba(217,79,61,.25)':'none'
+          }}/>
+      </div>
+
+      {/* ═══ TO DO ═══ */}
+      {mainTab==="todo"&&(
+        <div>
+          <div style={{padding:"12px 20px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{display:"flex",gap:6}}>
+              {TTD.map(t=><Pill key={t} active={todoSub===t} onClick={()=>setTodoSub(t)}>{t}</Pill>)}
+            </div>
+            <button onClick={()=>setShowEditTodo(true)} style={{background:"none",border:"1px solid #e0dcd6",borderRadius:8,padding:"5px 14px",fontSize:12,fontWeight:600,color:"#6b6560",cursor:"pointer"}}>
+              Edit
+            </button>
+          </div>
+
+          <div style={{padding:"14px 20px"}}>
+            {(()=>{
+              const items=getTodoItems(todoSub);
+              const pending=items.filter(it=>!it.completedDate);
+              const done=items.filter(it=>!!it.completedDate);
+
+              if(!pending.length&&!done.length)return(
+                <div style={{textAlign:"center",padding:"52px 20px",color:"#b0aaa4"}}>
+                  <div style={{fontSize:36,marginBottom:10}}>✨</div>
+                  <div style={{fontSize:14,fontWeight:500}}>No tasks for {todoSub}</div>
+                  <div style={{fontSize:12,marginTop:4}}>Click Edit to add tasks</div>
+                </div>
+              );
+
+              return(
+                <>
+                  {pending.length>0&&(
+                    <div style={{marginBottom:22}}>
+                      <SectionLabel count={`${pending.length} · ${sumRequiredTime(pending)}h`}>Pending</SectionLabel>
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        {pending.map(it=>(
+                          <TodoCard key={it._ref} item={it} showCheck checked={false}
+                            onCheck={()=>toggleRef(it._ref)}
+                            onClick={()=>{const t=tasks.find(x=>x.id===it.taskId);if(t){setEditTask(t);setShowForm(true);}}}/>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {done.length>0&&(
+                    <div>
+                      <SectionLabel count={`${done.length} · ${sumRequiredTime(done)}h`}>Completed</SectionLabel>
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        {done.map(it=>(
+                          <TodoCard key={it._ref} item={it} showCheck checked dimmed
+                            onCheck={()=>toggleRef(it._ref)}
+                            onClick={()=>{const t=tasks.find(x=>x.id===it.taskId);if(t){setEditTask(t);setShowForm(true);}}}/>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* ═══ ALL TASKS ═══ */}
+      {mainTab==="all"&&(
+        <div>
+          <div style={{padding:"12px 20px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{display:"flex",gap:6}}>
+              <Pill active={allSub==="active"} onClick={()=>setAllSub("active")}>Active</Pill>
+              <Pill active={allSub==="completed"} onClick={()=>setAllSub("completed")}>Completed</Pill>
+            </div>
+            <button onClick={()=>setShowImport(true)} style={{background:"none",border:"1px solid #e0dcd6",borderRadius:8,padding:"5px 14px",fontSize:12,fontWeight:600,color:"#6b6560",cursor:"pointer"}}>
+              Import / Export
+            </button>
+          </div>
+
+          <div style={{padding:"14px 20px"}}>
+            {allSub==="active"&&(
+              <>
+                <div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+                  <span style={{fontSize:11,color:"#a09a90",marginRight:2}}>Sort:</span>
+                  {["importance","urgency","deadline","project"].map(s=>(
+                    <button key={s} onClick={()=>{setSortBy(s);setShowMatrix(false);}} style={{
+                      background:sortBy===s&&!showMatrix?"#e8e0d6":"transparent",
+                      border:"1px solid",
+                      borderColor:sortBy===s&&!showMatrix?"#cfc8be":"#e8e5e0",
+                      borderRadius:99,
+                      padding:"4px 10px",
+                      fontSize:11,
+                      fontWeight:500,
+                      color:sortBy===s&&!showMatrix?"#4a4540":"#8a8580",
+                      cursor:"pointer"
+                    }}>{s}</button>
+                  ))}
+                  <button onClick={()=>setShowMatrix(v=>!v)} style={{
+                    marginLeft:"auto",
+                    background:showMatrix?"#1a1714":"#edeae4",
+                    color:showMatrix?"#fff":"#6b6560",
+                    border:"none",
+                    borderRadius:99,
+                    padding:"5px 12px",
+                    fontSize:11,
+                    fontWeight:700,
+                    cursor:"pointer"
+                  }}>Matrix</button>
+                </div>
+
+                {activeTasks.length===0
+                  ?(
+                    <div style={{textAlign:"center",padding:"52px 20px",color:"#b0aaa4"}}>
+                      <div style={{fontSize:36,marginBottom:10}}>📋</div>
+                      <div style={{fontSize:14,fontWeight:500}}>No active tasks</div>
+                    </div>
+                  )
+                  :showMatrix
+                    ?<MatrixView tasks={activeTasks}/>
+                    :sortBy==="project"
+                      ?(
+                        ()=>{
+                          const grouped={};
+                          sortTasks(activeTasks,"project").forEach(t=>{
+                            const k=effective(t).project||"No Project";
+                            if(!grouped[k])grouped[k]=[];
+                            grouped[k].push(t);
+                          });
+                          return Object.entries(grouped).map(([project,items])=>(
+                            <div key={project} style={{marginBottom:22}}>
+                              <SectionLabel count={items.length}>{project}</SectionLabel>
+                              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                                {items.map(t=>(
+                                  <AllTaskCard key={t.id} task={t} onEdit={t=>{setEditTask(t);setShowForm(true);}} onToggleSub={toggleSubAll}/>
+                                ))}
+                              </div>
+                            </div>
+                          ));
+                        }
+                      )()
+                      :(
+                        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                          {sortTasks(activeTasks,sortBy).map(t=>(
+                            <AllTaskCard key={t.id} task={t} onEdit={t=>{setEditTask(t);setShowForm(true);}} onToggleSub={toggleSubAll}/>
+                          ))}
+                        </div>
+                      )
+                }
+              </>
+            )}
+
+            {allSub==="completed"&&(
+              <>
+                <div style={{display:"flex",gap:5,marginBottom:14}}>
+                  {["week","month"].map(v=>(
+                    <button key={v} onClick={()=>setCompView(v)} style={{
+                      background:compView===v?"#e8e0d6":"transparent",
+                      border:"1px solid",
+                      borderColor:compView===v?"#cfc8be":"#e8e5e0",
+                      borderRadius:99,
+                      padding:"4px 10px",
+                      fontSize:11,
+                      fontWeight:500,
+                      color:compView===v?"#4a4540":"#8a8580",
+                      cursor:"pointer"
+                    }}>By {v}</button>
+                  ))}
+                </div>
+
+                {completedTasks.length===0
+                  ?(
+                    <div style={{textAlign:"center",padding:"52px 20px",color:"#b0aaa4"}}>
+                      <div style={{fontSize:36,marginBottom:10}}>🎉</div>
+                      <div style={{fontSize:14,fontWeight:500}}>No completed tasks yet</div>
+                    </div>
+                  )
+                  :groupCompleted(completedTasks,compView).map(([key,items])=>(
+                    <div key={key} style={{marginBottom:22}}>
+                      <SectionLabel count={items.length}>{fmtGroupLabel(key,compView)}</SectionLabel>
+                      <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>
+                        {items.map(t=>(
+                          <AllTaskCard key={t.id} task={t} onEdit={t=>{setEditTask(t);setShowForm(true);}} onToggleSub={toggleSubAll}/>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+                }
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* FAB */}
+      <button onClick={()=>{setEditTask(null);setShowForm(true);}} style={{
+        position:"fixed",
+        bottom:24,
+        right:"max(24px,calc(50% - 296px))",
+        width:52,
+        height:52,
+        borderRadius:16,
+        background:"#c96442",
+        color:"#fff",
+        border:"none",
+        fontSize:28,
+        cursor:"pointer",
+        lineHeight:1,
+        boxShadow:"0 4px 20px rgba(201,100,66,.38)",
+        display:"flex",
+        alignItems:"center",
+        justifyContent:"center",
+        zIndex:100
+      }}>+</button>
+
+      <Modal open={showForm} onClose={()=>{setShowForm(false);setEditTask(null);}} title={editTask?"Edit Task":"New Task"} width={480}>
+        <TaskForm task={editTask} onSave={saveTask} onDelete={deleteTask} onClose={()=>{setShowForm(false);setEditTask(null);}}/>
+      </Modal>
+
+      <EditTodoModal open={showEditTodo} onClose={()=>setShowEditTodo(false)}
+        period={todoSub}
+        tasks={tasks}
+        todoLists={todoLists}
+        todoOrder={todoOrder}
+        onUpdate={(l,o)=>update(()=>({todoLists:l,todoOrder:o}))}/>
+
+      <ImportExportModal open={showImport} onClose={()=>setShowImport(false)} data={data} onImport={d=>setData(d)}/>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
