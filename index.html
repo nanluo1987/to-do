@@ -39,6 +39,7 @@
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:#d0ccc6;border-radius:3px}
   input[type="date"]::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer}
+  @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
@@ -109,9 +110,21 @@ const getWeekKey=d=>{
   const day=dt.getDay();
   const m=new Date(dt);
   m.setDate(dt.getDate()-((day+6)%7));
-  return localDateKey(m);
+  return`${m.getFullYear()}-${pad2(m.getMonth()+1)}-${pad2(m.getDate())}`;
 };
 const getMonthKey=d=>localMonthKey(d);
+
+/* ═══ Period helpers ═══ */
+const todayKey=()=>{const d=new Date();return`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;};
+const thisWeekStart=()=>{const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));return`${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;};
+const thisMonthKey=()=>{const d=new Date();return`${d.getFullYear()}-${pad2(d.getMonth()+1)}`;};
+const isInPeriod=(cd,period)=>{
+  if(!cd)return false;
+  if(period==="today")return localDateKey(cd)===todayKey();
+  if(period==="this week")return getWeekKey(cd)===thisWeekStart();
+  if(period==="this month")return localMonthKey(cd)===thisMonthKey();
+  return false;
+};
 
 /* ═══ Helpers ═══ */
 const mkRef=(tid,sid)=>sid?`${tid}::${sid}`:tid;
@@ -810,6 +823,7 @@ function EditTodoModal({open,onClose,period,tasks,todoLists,todoOrder,onUpdate})
   const[lists,setLists]=useState({});
   const[orders,setOrders]=useState({});
   const[addOpen,setAddOpen]=useState(true);
+  const[addTab,setAddTab]=useState("");
   const[dragIdx,setDragIdx]=useState(null);
   const[dragOver,setDragOver]=useState(null);
 
@@ -825,11 +839,33 @@ function EditTodoModal({open,onClose,period,tasks,todoLists,todoOrder,onUpdate})
       "this month":[...(todoOrder["this month"]||[])]
     });
     setAddOpen(true);
+    // default tab for each period
+    setAddTab(period==="today"?"today":period==="this week"?"this week":"this month");
   },[open]);
 
   const allItems=useMemo(()=>buildTodoItems(tasks),[tasks]);
   const currentRefs=lists[period]||[];
-  const available=allItems.filter(it=>!currentRefs.includes(it.ref)&&!it.completedDate);
+
+  // All available: not in list AND not completed
+  const allAvailable=allItems.filter(it=>!currentRefs.includes(it.ref)&&!it.completedDate);
+
+  // Tabs config per period
+  const tabsConfig={
+    "today":[
+      {key:"today",   label:"today",      filter:it=>it.timeToDo==="today"},
+      {key:"week",    label:"this week",   filter:it=>it.timeToDo==="this week"},
+      {key:"others",  label:"others",      filter:it=>it.timeToDo!=="today"&&it.timeToDo!=="this week"}
+    ],
+    "this week":[
+      {key:"week",    label:"this week",   filter:it=>it.timeToDo==="this week"},
+      {key:"month",   label:"this month",  filter:it=>it.timeToDo==="this month"},
+      {key:"others",  label:"others",      filter:it=>it.timeToDo!=="this week"&&it.timeToDo!=="this month"}
+    ],
+    "this month":null
+  };
+  const tabs=tabsConfig[period];
+  const activeTabFilter=tabs?tabs.find(t=>t.key===addTab)?.filter:null;
+  const available=activeTabFilter?allAvailable.filter(activeTabFilter):allAvailable;
 
   const addItem=ref=>{
     const nl={...lists},no={...orders};
@@ -873,33 +909,57 @@ function EditTodoModal({open,onClose,period,tasks,todoLists,todoOrder,onUpdate})
     return o;
   },[orders,currentRefs,period]);
 
+  // Only show non-completed items in the list (completed ones hide automatically)
+  const displayRefs=orderedRefs.filter(ref=>{
+    const it=allItems.find(x=>x.ref===ref);
+    return !it||!it.completedDate;
+  });
+
   const findItem=ref=>allItems.find(it=>it.ref===ref);
 
   return(
     <Modal open={open} onClose={onClose} title={`Edit — ${period}`} width={500}>
       <div style={{marginBottom:16}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <span style={{fontSize:13,fontWeight:600,color:"#6b6560"}}>Tasks ({orderedRefs.length})</span>
+          <span style={{fontSize:13,fontWeight:600,color:"#6b6560"}}>Tasks ({displayRefs.length})</span>
           <button style={{...btnS,padding:"6px 14px",fontSize:12}} onClick={()=>setAddOpen(a=>!a)}>+ Add</button>
         </div>
 
         {addOpen&&(
-          <div style={{border:"1px solid #e8e5e0",borderRadius:10,padding:10,marginBottom:12,maxHeight:220,overflow:"auto",background:"#fafaf8"}}>
-            {available.length===0
-              ?<div style={{fontSize:13,color:"#a09a90",textAlign:"center",padding:"12px 0"}}>No tasks to add</div>
-              :available.map(it=>(
-                <div key={it.ref} onClick={()=>addItem(it.ref)} style={{padding:"8px 10px",borderRadius:8,cursor:"pointer",fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center"}}
-                  onMouseEnter={e=>e.currentTarget.style.background="#f0ece6"}
-                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                  <span style={{color:"#1a1714"}}>{it.displayName}</span>
-                  <span style={{fontSize:11,color:"#8a8580"}}>{it.project||""}</span>
-                </div>
-              ))}
+          <div style={{border:"1px solid #e8e5e0",borderRadius:10,marginBottom:12,background:"#fafaf8",overflow:"hidden"}}>
+            {/* Tabs for today / this week periods */}
+            {tabs&&(
+              <div style={{display:"flex",borderBottom:"1px solid #e8e5e0",background:"#f5f4f1"}}>
+                {tabs.map(t=>(
+                  <button key={t.key} onClick={()=>setAddTab(t.key)} style={{
+                    flex:1,padding:"7px 4px",fontSize:11,fontWeight:addTab===t.key?700:500,
+                    color:addTab===t.key?"#1a1714":"#8a8580",
+                    background:addTab===t.key?"#fff":"transparent",
+                    border:"none",borderBottom:addTab===t.key?"2px solid #c96442":"2px solid transparent",
+                    cursor:"pointer",whiteSpace:"nowrap"
+                  }}>{t.label}<span style={{marginLeft:4,fontWeight:400,color:"#b0aaa4",fontSize:10}}>
+                    {allAvailable.filter(t.filter).length}
+                  </span></button>
+                ))}
+              </div>
+            )}
+            <div style={{padding:10,maxHeight:200,overflow:"auto"}}>
+              {available.length===0
+                ?<div style={{fontSize:13,color:"#a09a90",textAlign:"center",padding:"12px 0"}}>No tasks to add</div>
+                :available.map(it=>(
+                  <div key={it.ref} onClick={()=>addItem(it.ref)} style={{padding:"8px 10px",borderRadius:8,cursor:"pointer",fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                    onMouseEnter={e=>e.currentTarget.style.background="#f0ece6"}
+                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                    <span style={{color:"#1a1714"}}>{it.displayName}</span>
+                    <span style={{fontSize:11,color:"#8a8580"}}>{it.project||""}</span>
+                  </div>
+                ))}
+            </div>
           </div>
         )}
 
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
-          {orderedRefs.map((ref,idx)=>{
+          {displayRefs.map((ref,idx)=>{
             const it=findItem(ref);
             return(
               <div key={ref} draggable
@@ -1023,7 +1083,7 @@ function App(){
 
   /* ③ On first load: pull from Supabase if cloud is newer than localStorage */
   useEffect(()=>{
-    const pullFromCloud=async()=>{
+    (async()=>{
       try{
         const{data:row,error}=await sb.from('todo_state')
           .select('data,updated_at').eq('id','singleton').maybeSingle();
@@ -1032,9 +1092,11 @@ function App(){
           const localTs=local?._ts?new Date(local._ts):new Date(0);
           const cloudTs=new Date(row.updated_at);
           if(cloudTs>localTs){
-            syncSkip.current++;
+            syncSkip.current++; // don't re-push the data we just pulled
             save(row.data);
             setData(row.data);
+            setSyncStatus('ok');
+            return;
           }
         }
         setSyncStatus('ok');
@@ -1042,12 +1104,27 @@ function App(){
         console.error('Cloud load error:',e);
         setSyncStatus('err');
       }
-    };
-
-    pullFromCloud(); // 打开时立即拉取一次
-    const timer=setInterval(pullFromCloud,30000); // 之后每 30 秒检查一次
-    return()=>clearInterval(timer); // 关闭页面时清理
+    })();
   },[]);
+
+  /* ④ Manual sync: always pull latest from cloud */
+  const manualSync=async()=>{
+    if(syncStatus==='syncing')return;
+    setSyncStatus('syncing');
+    try{
+      const{data:row,error}=await sb.from('todo_state')
+        .select('data,updated_at').eq('id','singleton').maybeSingle();
+      if(!error&&row){
+        syncSkip.current++;
+        save(row.data);
+        setData(row.data);
+      }
+      setSyncStatus('ok');
+    }catch(e){
+      console.error('Manual sync error:',e);
+      setSyncStatus('err');
+    }
+  };
   const update=fn=>setData(d=>({...d,...fn(d)}));
 
   const syncRefs=(oldTask,newTask,lists,orders)=>{
@@ -1221,14 +1298,26 @@ function App(){
           }}>{label}</button>
         ))}
         </div>
-        {/* Sync status indicator */}
-        <div title={syncStatus==='ok'?'已同步':syncStatus==='syncing'?'同步中…':syncStatus==='err'?'同步失败':'连接中…'}
-          style={{marginBottom:12,marginRight:4,width:8,height:8,borderRadius:"50%",flexShrink:0,
-            background:syncStatus==='ok'?'#4f9460':syncStatus==='syncing'?'#c49a2a':syncStatus==='err'?'#d94f3d':'#c4bfb6',
-            transition:'background .4s',
-            boxShadow:syncStatus==='syncing'?'0 0 0 2px rgba(196,154,42,.3)':
-                       syncStatus==='err'?'0 0 0 2px rgba(217,79,61,.25)':'none'
-          }}/>
+        {/* Sync button */}
+        <button onClick={manualSync} disabled={syncStatus==='syncing'}
+          title={syncStatus==='ok'?'已同步，点击手动同步':syncStatus==='syncing'?'同步中…':syncStatus==='err'?'同步失败，点击重试':'点击同步'}
+          style={{
+            marginBottom:10,marginRight:2,
+            display:"flex",alignItems:"center",gap:3,
+            fontSize:11,fontWeight:600,
+            color:syncStatus==='ok'?'#4f9460':syncStatus==='err'?'#d94f3d':'#c49a2a',
+            background:"none",border:"none",
+            cursor:syncStatus==='syncing'?'default':'pointer',
+            padding:"2px 6px",borderRadius:6,
+            opacity:syncStatus==='syncing'?0.7:1,
+            transition:"color .3s"
+          }}>
+          <span style={{
+            fontSize:14,display:"inline-block",lineHeight:1,
+            animation:syncStatus==='syncing'?'spin .8s linear infinite':'none'
+          }}>↻</span>
+          <span>{syncStatus==='syncing'?'syncing…':syncStatus==='err'?'error':'synced'}</span>
+        </button>
       </div>
 
       {/* ═══ TO DO ═══ */}
@@ -1247,7 +1336,7 @@ function App(){
             {(()=>{
               const items=getTodoItems(todoSub);
               const pending=items.filter(it=>!it.completedDate);
-              const done=items.filter(it=>!!it.completedDate);
+              const done=items.filter(it=>it.completedDate&&isInPeriod(it.completedDate,todoSub));
 
               if(!pending.length&&!done.length)return(
                 <div style={{textAlign:"center",padding:"52px 20px",color:"#b0aaa4"}}>
