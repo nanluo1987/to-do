@@ -7,7 +7,7 @@
 
 <!-- PWA -->
 <link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#c96442" />
+<meta name="theme-color" content="#0070C0" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="To Do" />
@@ -31,13 +31,13 @@
 </script>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Source Sans 3','PingFang SC','Microsoft YaHei',sans-serif;background:#f5f4f1;min-height:100vh;color:#1a1714}
+  body{font-family:'Source Sans 3','PingFang SC','Microsoft YaHei',sans-serif;background:#DCE8F0;min-height:100vh;color:#1E293B}
   #root{min-height:100vh}
   button,input,select,textarea{font-family:inherit}
-  input:focus,select:focus,textarea:focus{outline:2px solid #c96442;outline-offset:0}
+  input:focus,select:focus,textarea:focus{outline:2px solid #0070C0;outline-offset:0}
   ::-webkit-scrollbar{width:5px}
   ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:#d0ccc6;border-radius:3px}
+  ::-webkit-scrollbar-thumb{background:#CBD5E1;border-radius:3px}
   input[type="date"]::-webkit-calendar-picker-indicator{opacity:.5;cursor:pointer}
   @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 </style>
@@ -52,7 +52,7 @@ const {useState,useEffect,useMemo,useRef}=React;
    ⚠ 在下方填入你的 Supabase 项目 URL 和 anon key（见部署指南步骤 1）
 */
 const SUPABASE_URL = 'https://hngvytkpgqpczgngafxr.supabase.co'; // ← 替换
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuZ3Z5dGtwZ3FwY3pnbmdhZnhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NjA4NTUsImV4cCI6MjA5NDEzNjg1NX0.86Z-MvwUFMm0sfgcAoo52sY4k_ZeHN-Ms65GgZ-E3M0';                 // ← 替换
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhuZ3Z5dGtwZ3FwY3pnbmdhZnhyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1NjA4NTUsImV4cCI6MjA5NDEzNjg1NX0.86Z-MvwUFMm0sfgcAoo52sY4k_ZeHN-Ms65GgZ-E3M0';   // ← 替换
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ═══ Constants ═══ */
@@ -263,13 +263,13 @@ function fmtGroupLabel(key,by){
 }
 
 /* ═══ Shared Styles ═══ */
-const iSt={width:"100%",padding:"9px 11px",border:"1px solid #e0dcd6",borderRadius:8,fontSize:14,color:"#1a1714",background:"#fafaf8"};
+const iSt={width:"100%",padding:"9px 11px",border:"1px solid #D1D9E6",borderRadius:8,fontSize:14,color:"#1E293B",background:"#FFFFFF"};
 const selSt={...iSt,appearance:"none",cursor:"pointer"};
-const btnP={background:"#c96442",color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",fontSize:14,fontWeight:700,cursor:"pointer"};
-const btnS={background:"#f0ece6",color:"#4a4540",border:"none",borderRadius:10,padding:"10px 22px",fontSize:14,fontWeight:600,cursor:"pointer"};
+const btnP={background:"#0070C0",color:"#fff",border:"none",borderRadius:10,padding:"10px 22px",fontSize:14,fontWeight:700,cursor:"pointer"};
+const btnS={background:"#DCE8F0",color:"#475569",border:"none",borderRadius:10,padding:"10px 22px",fontSize:14,fontWeight:600,cursor:"pointer"};
 
 /* ═══ Icons / Atoms ═══ */
-function SvgIcon({type,color="#8a8580",size=12}){
+function SvgIcon({type,color="#64748B",size=12}){
   if(type==="importance"){
     return(
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -285,6 +285,23 @@ function SvgIcon({type,color="#8a8580",size=12}){
       </svg>
     );
   }
+  if(type==="deadline"){
+    return(
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="16" rx="2" stroke={color} strokeWidth="2"/>
+        <path d="M3 10h18" stroke={color} strokeWidth="2"/>
+        <path d="M8 3v4M16 3v4" stroke={color} strokeWidth="2" strokeLinecap="round"/>
+      </svg>
+    );
+  }
+  if(type==="export"){
+    return(
+      <svg width={size} height={size} viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M6 2L2 6h3v9h2V6h3L6 2z" fill={color}/>
+        <path d="M14 18l4-4h-3V5h-2v9h-3l4 4z" fill={color}/>
+      </svg>
+    );
+  }
   return(
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="12" r="8.5" stroke={color} strokeWidth="2.4"/>
@@ -294,7 +311,7 @@ function SvgIcon({type,color="#8a8580",size=12}){
 }
 
 function Badge({level,type}){
-  const color=LVL_CLR[level]||"#8a8580";
+  const color=LVL_CLR[level]||"#64748B";
   return(
     <span style={{
       display:"inline-flex",
@@ -317,7 +334,7 @@ function Badge({level,type}){
   );
 }
 
-function TimeLabel({value,color="#8a8580"}){
+function TimeLabel({value,color="#64748B"}){
   const v=fmtHour(value);
   if(!v)return null;
   return(
@@ -331,7 +348,7 @@ function TimeLabel({value,color="#8a8580"}){
 function ProjectLabel({project}){
   if(!project)return null;
   return(
-    <span style={{fontSize:11,fontWeight:600,color:"#6b6560"}}>
+    <span style={{fontSize:11,fontWeight:600,color:"#64748B"}}>
       {project}
     </span>
   );
@@ -340,8 +357,8 @@ function ProjectLabel({project}){
 function Pill({active,onClick,children}){
   return(
     <button onClick={onClick} style={{
-      background:active?"#1a1714":"#edeae4",
-      color:active?"#fff":"#6b6560",
+      background:active?"#0070C0":"#DCE8F0",
+      color:active?"#fff":"#64748B",
       border:"none",
       borderRadius:99,
       padding:"6px 14px",
@@ -353,10 +370,10 @@ function Pill({active,onClick,children}){
   );
 }
 
-function SectionLabel({children,count}){
+function SectionLabel({children}){
   return(
-    <div style={{fontSize:11,fontWeight:700,color:"#8a8580",marginBottom:10,marginTop:4,textTransform:"uppercase",letterSpacing:.6,display:"flex",alignItems:"center",gap:6}}>
-      {children}{count!=null&&<span style={{fontWeight:500}}>· {count}</span>}
+    <div style={{fontSize:11,fontWeight:700,color:"#64748B",marginBottom:10,marginTop:4,textTransform:"uppercase",letterSpacing:.6}}>
+      {children}
     </div>
   );
 }
@@ -364,8 +381,35 @@ function SectionLabel({children,count}){
 function Field({label,children}){
   return(
     <div style={{marginBottom:14}}>
-      <label style={{fontSize:11,fontWeight:700,color:"#8a8580",display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:.5}}>{label}</label>
+      <label style={{fontSize:11,fontWeight:700,color:"#64748B",display:"block",marginBottom:5,textTransform:"uppercase",letterSpacing:.5}}>{label}</label>
       {children}
+    </div>
+  );
+}
+
+function OptionBtns({options,value,onChange,colored}){
+  return(
+    <div style={{display:"flex",gap:3}}>
+      {options.map(opt=>{
+        const val=typeof opt==="string"?opt:opt.value;
+        const label=typeof opt==="string"?opt:opt.label;
+        const active=value===val;
+        const clr=colored&&active?(LVL_CLR[val]||"#0070C0"):(active?"#0070C0":"#94A3B8");
+        const bg=colored&&active?(LVL_BG[val]||"#EFF6FF"):(active?"#EFF6FF":"#F8FAFC");
+        return(
+          <button key={val} type="button" onClick={()=>onChange(active?"":val)}
+            style={{
+              flex:1,padding:"7px 2px",
+              fontSize:label.length>7?9.5:11,
+              fontWeight:active?700:500,
+              color:clr,background:bg,
+              border:`1.5px solid ${active?clr:"#E2E8F0"}`,
+              borderRadius:7,cursor:"pointer",
+              textAlign:"center",lineHeight:1.3,
+              wordBreak:"break-word",transition:"all .12s"
+            }}>{label}</button>
+        );
+      })}
     </div>
   );
 }
@@ -375,8 +419,8 @@ function Checkbox({checked,onClick,size}){
   return(
     <div onClick={e=>{e.stopPropagation();onClick?.();}} style={{
       width:sz,height:sz,minWidth:sz,borderRadius:sz>18?6:5,cursor:"pointer",flexShrink:0,
-      border:checked?"none":"2px solid #c4bfb6",
-      background:checked?"#c96442":"transparent",
+      border:checked?"none":"2px solid #CBD5E1",
+      background:checked?"#0070C0":"transparent",
       display:"flex",alignItems:"center",justifyContent:"center",
       transition:"all .15s"
     }}>
@@ -394,8 +438,8 @@ function TodoCard({item,onClick,showCheck,checked,onCheck,dimmed}){
   const[hover,setHover]=useState(false);
   return(
     <div onClick={onClick} onMouseEnter={()=>setHover(true)} onMouseLeave={()=>setHover(false)} style={{
-      background:dimmed?"#f6f5f2":"#fff",
-      border:`1px solid ${hover&&!dimmed?"#c4bfb6":"#e8e5e0"}`,
+      background:dimmed?"#F8FAFC":"#fff",
+      border:`1px solid ${hover&&!dimmed?"#CBD5E1":"#E2E8F0"}`,
       borderRadius:12,
       padding:"12px 14px",
       cursor:"pointer",
@@ -411,16 +455,16 @@ function TodoCard({item,onClick,showCheck,checked,onCheck,dimmed}){
           <div style={{
             fontSize:14,
             fontWeight:600,
-            color:"#1a1714",
+            color:"#1E293B",
             minWidth:0,
             flex:1,
             textDecoration:dimmed?"line-through":"none",
-            textDecorationColor:"#a09a90"
+            textDecorationColor:"#94A3B8"
           }}>
             {item.taskName
               ?(
                 <>
-                  <span style={{color:"#1a1714",fontWeight:600}}>{item.taskName}</span>
+                  <span style={{color:"#1E293B",fontWeight:600}}>{item.taskName}</span>
                   <span style={{color:"#ccc",margin:"0 7px",fontWeight:400}}>|</span>
                   <span>{item.name}</span>
                 </>
@@ -435,54 +479,40 @@ function TodoCard({item,onClick,showCheck,checked,onCheck,dimmed}){
         <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
           <TimeLabel value={item.requiredTime}/>
           <ProjectLabel project={item.project}/>
-          {item.deadline&&<span style={{fontSize:11,color:"#8a8580"}}>📅 {fmtDate(item.deadline)}</span>}
+          {item.deadline&&<span style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:11,color:"#64748B"}}><SvgIcon type="deadline" color="#64748B" size={11}/>{fmtDate(item.deadline)}</span>}
         </div>
       </div>
     </div>
   );
 }
 
-function AllTaskCard({task,onEdit,onToggleSub}){
+function AllTaskCard({task,onEdit,onToggleSub,onSetTimeToDo}){
   const[expanded,setExpanded]=useState(false);
   const eff=effective(task);
   const done=taskIsComplete(task);
   const hasSubs=task.subtasks&&task.subtasks.length>0;
 
   return(
-    <div style={{borderRadius:12,border:"1px solid #e8e5e0",overflow:"hidden"}}>
+    <div style={{borderRadius:12,border:"1px solid #E2E8F0",overflow:"hidden"}}>
       <div onClick={()=>onEdit(task)} style={{
-        background:done?"#f6f5f2":"#fff",
-        padding:"13px 15px",
+        background:done?"#F8FAFC":"#fff",
+        padding:"11px 14px",
         cursor:"pointer",
         opacity:done?.58:1,
-        borderBottom:expanded&&hasSubs?"1px solid #f0ece6":"none"
+        borderBottom:expanded&&hasSubs?"1px solid #DCE8F0":"none"
       }}>
-        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,marginBottom:7}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
           <div style={{
-            display:"flex",
-            alignItems:"center",
-            gap:6,
-            flex:1,
-            minWidth:0,
-            fontSize:14,
-            fontWeight:600,
-            color:"#1a1714",
-            textDecoration:done?"line-through":"none",
-            textDecorationColor:"#a09a90"
+            flex:1,minWidth:0,fontSize:14,fontWeight:600,color:"#1E293B",
+            textDecoration:done?"line-through":"none",textDecorationColor:"#94A3B8",
+            display:"flex",alignItems:"center",gap:6
           }}>
-            <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.name}</span>
+            <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{task.name}</span>
             {hasSubs&&(
               <button onClick={e=>{e.stopPropagation();setExpanded(x=>!x);}} style={{
-                background:"none",
-                border:"none",
-                cursor:"pointer",
-                fontSize:18,
-                color:"#1a1714",
-                padding:"0 3px",
-                lineHeight:1,
-                transform:expanded?"rotate(90deg)":"rotate(0deg)",
-                transition:"transform .2s",
-                flexShrink:0
+                background:"none",border:"none",cursor:"pointer",fontSize:18,
+                color:"#94A3B8",padding:"0 2px",lineHeight:1,flexShrink:0,
+                transform:expanded?"rotate(90deg)":"rotate(0deg)",transition:"transform .2s"
               }}>›</button>
             )}
           </div>
@@ -491,55 +521,64 @@ function AllTaskCard({task,onEdit,onToggleSub}){
             <Badge level={eff.urgency} type="u"/>
           </div>
         </div>
-
-        <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-          <TimeLabel value={eff.requiredTime}/>
-          <ProjectLabel project={eff.project}/>
-          {eff.deadline&&<span style={{fontSize:11,color:"#8a8580"}}>📅 {fmtDate(eff.deadline)}</span>}
-        </div>
       </div>
 
       {expanded&&hasSubs&&(
-        <div style={{background:"#fafaf8",padding:"8px 12px 10px"}}>
+        <div style={{background:"#F8FAFC",padding:"4px 10px 6px"}}>
           {task.subtasks.map(s=>{
             const sDone=!!s.completedDate;
+            const ttd=s.timeToDo||"";
             return(
               <div key={s.id} style={{
-                padding:"9px 10px",
-                borderRadius:8,
-                marginBottom:4,
-                background:"#fff",
-                border:"1px solid #f0ece6",
-                opacity:sDone?.52:1
+                display:"flex",alignItems:"center",gap:8,
+                padding:"6px 8px",borderRadius:8,marginBottom:2,
+                opacity:sDone?.45:1,transition:"opacity .15s"
               }}>
-                <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
-                  <Checkbox checked={sDone} onClick={()=>onToggleSub(task.id,s.id)} size={18}/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,marginBottom:5}}>
-                      <div style={{
-                        flex:1,
-                        minWidth:0,
-                        fontSize:13,
-                        fontWeight:600,
-                        color:"#1a1714",
-                        textDecoration:sDone?"line-through":"none",
-                        textDecorationColor:"#a09a90"
-                      }}>
-                        <span style={{color:"#1a1714",fontWeight:600}}>{task.name}</span>
-                        <span style={{color:"#ccc",margin:"0 7px",fontWeight:400}}>|</span>
-                        <span>{s.name}</span>
-                      </div>
-                      <div style={{display:"flex",gap:5,alignItems:"center",flexShrink:0}}>
-                        <Badge level={eff.importance} type="i"/>
-                        <Badge level={eff.urgency} type="u"/>
-                      </div>
-                    </div>
-                    <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-                      <TimeLabel value={s.requiredTime} color="#a09a90"/>
-                      <ProjectLabel project={eff.project}/>
-                      {s.timeToDo&&<span style={{fontSize:10,color:"#8a8580",fontWeight:600}}>{s.timeToDo}</span>}
-                    </div>
-                  </div>
+                {/* Done checkbox */}
+                <Checkbox checked={sDone} onClick={()=>onToggleSub(task.id,s.id)} size={16}/>
+
+                {/* Name + time */}
+                <span style={{
+                  flex:1,minWidth:0,fontSize:13,color:"#1E293B",fontWeight:500,
+                  textDecoration:sDone?"line-through":"none",textDecorationColor:"#94A3B8",
+                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"
+                }}>{s.name}</span>
+                {s.requiredTime&&<TimeLabel value={s.requiredTime} color="#94A3B8"/>}
+
+                {/* TimeToDo single-select checkboxes */}
+                <div style={{display:"flex",gap:1,alignItems:"center",flexShrink:0}}
+                  onClick={e=>e.stopPropagation()}>
+                  {[["today","T"],["this week","W"],["this month","M"]].map(([period,lbl])=>{
+                    const on=ttd===period;
+                    return(
+                      <button key={period}
+                        onClick={()=>!sDone&&onSetTimeToDo(task.id,s.id,on?"":period)}
+                        title={period}
+                        style={{
+                          display:"flex",flexDirection:"column",alignItems:"center",gap:2,
+                          background:"none",border:"none",cursor:sDone?"default":"pointer",
+                          padding:"2px 4px",borderRadius:5
+                        }}>
+                        <div style={{
+                          width:13,height:13,borderRadius:3,flexShrink:0,
+                          border:`1.5px solid ${on?"#0070C0":"#CBD5E1"}`,
+                          background:on?"#0070C0":"transparent",
+                          display:"flex",alignItems:"center",justifyContent:"center",
+                          transition:"all .12s"
+                        }}>
+                          {on&&(
+                            <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                              <path d="M1.5 4L3 5.5L6.5 2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                        </div>
+                        <span style={{
+                          fontSize:8,lineHeight:1,fontWeight:on?700:400,
+                          color:on?"#0070C0":"#CBD5E1",userSelect:"none"
+                        }}>{lbl}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -576,7 +615,7 @@ function MatrixView({tasks}){
     <div style={{
       position:"absolute",
       fontSize:11,
-      color:"#8a8580",
+      color:"#64748B",
       fontWeight:700,
       letterSpacing:.2,
       ...style
@@ -586,13 +625,13 @@ function MatrixView({tasks}){
   );
 
   return(
-    <div style={{background:"#fff",border:"1px solid #e8e5e0",borderRadius:14,padding:14}}>
+    <div style={{background:"#fff",border:"1px solid #E2E8F0",borderRadius:14,padding:14}}>
       <div style={{
         position:"relative",
         height:360,
-        border:"1px solid #e0dcd6",
+        border:"1px solid #D1D9E6",
         borderRadius:12,
-        background:"#fafaf8",
+        background:"#FFFFFF",
         overflow:"hidden"
       }}>
         <div style={{
@@ -601,7 +640,7 @@ function MatrixView({tasks}){
           top:0,
           bottom:0,
           width:1,
-          background:"#d8d2ca"
+          background:"#CBD5E1"
         }}/>
         <div style={{
           position:"absolute",
@@ -609,7 +648,7 @@ function MatrixView({tasks}){
           left:0,
           right:0,
           height:1,
-          background:"#d8d2ca"
+          background:"#CBD5E1"
         }}/>
 
         <AxisLabel style={{left:"calc(50% + 8px)",top:8}}>
@@ -639,7 +678,7 @@ function MatrixView({tasks}){
                 width:14,
                 height:14,
                 borderRadius:"50%",
-                background:"#c96442",
+                background:"#0070C0",
                 border:"2px solid #fff",
                 boxShadow:"0 1px 4px rgba(0,0,0,.18)",
                 flexShrink:0
@@ -647,7 +686,7 @@ function MatrixView({tasks}){
               <span style={{
                 fontSize:11,
                 fontWeight:600,
-                color:"#4a4540",
+                color:"#475569",
                 background:"rgba(255,255,255,.9)",
                 padding:"1px 5px",
                 borderRadius:6,
@@ -691,8 +730,8 @@ function Modal({open,onClose,title,width,children}){
         boxShadow:"0 24px 64px rgba(0,0,0,.14)"
       }}>
         <div style={{padding:"22px 24px 0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <h3 style={{margin:0,fontSize:17,fontWeight:700,color:"#1a1714"}}>{title}</h3>
-          <button onClick={onClose} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"#a09a90",padding:4,lineHeight:1}}>✕</button>
+          <h3 style={{margin:0,fontSize:17,fontWeight:700,color:"#1E293B"}}>{title}</h3>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:18,cursor:"pointer",color:"#94A3B8",padding:4,lineHeight:1}}>✕</button>
         </div>
         <div style={{padding:"16px 24px 24px"}}>{children}</div>
       </div>
@@ -723,93 +762,89 @@ function TaskForm({task,onSave,onDelete,onClose}){
     set("subtasks",s);
   };
 
+  const projectOpts=[{value:"",label:"None"},...PROJECTS.map(p=>({value:p,label:p}))];
+
   return(
     <div>
       <Field label="Name">
         <input style={iSt} value={f.name} onChange={e=>set("name",e.target.value)} placeholder="Task name…" autoFocus/>
       </Field>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <Field label="Importance">
-          <select style={selSt} value={f.importance} onChange={e=>set("importance",e.target.value)}>
-            {IMP.map(l=><option key={l} value={l}>{l}</option>)}
-          </select>
-        </Field>
-        <Field label="Urgency">
-          <select style={selSt} value={f.urgency} onChange={e=>set("urgency",e.target.value)}>
-            {URG.map(l=><option key={l} value={l}>{l}</option>)}
-          </select>
-        </Field>
-      </div>
+      <Field label="Project">
+        <OptionBtns options={projectOpts} value={f.project||""} onChange={v=>set("project",v)}/>
+      </Field>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <Field label="Deadline">
-          <input style={iSt} type="date" value={f.deadline||""} onChange={e=>set("deadline",e.target.value)}/>
-        </Field>
-        <Field label="Project">
-          <select style={selSt} value={f.project||""} onChange={e=>set("project",e.target.value)}>
-            <option value="">None</option>
-            {PROJECTS.map(p=><option key={p} value={p}>{p}</option>)}
-          </select>
-        </Field>
-      </div>
+      <Field label="Importance">
+        <OptionBtns options={IMP} value={f.importance} onChange={v=>set("importance",v)} colored/>
+      </Field>
+      <Field label="Urgency">
+        <OptionBtns options={URG} value={f.urgency} onChange={v=>set("urgency",v)} colored/>
+      </Field>
+
+      <Field label="Deadline">
+        <input style={{...iSt,padding:"7px 10px",fontSize:13}} type="date" value={f.deadline||""} onChange={e=>set("deadline",e.target.value)}/>
+      </Field>
 
       {!hasSubs&&(
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          <Field label="Required Time (h)">
-            <input style={iSt} type="number" min="0" step="0.5" value={f.requiredTime||""} onChange={e=>set("requiredTime",e.target.value)} placeholder="e.g. 2"/>
-          </Field>
           <Field label="Time to do">
-            <select style={selSt} value={f.timeToDo||""} onChange={e=>set("timeToDo",e.target.value)}>
-              <option value="">None</option>
-              {TTD.map(t=><option key={t} value={t}>{t}</option>)}
-            </select>
+            <OptionBtns options={TTD.map(t=>({value:t,label:t}))} value={f.timeToDo||""} onChange={v=>set("timeToDo",v)}/>
+          </Field>
+          <Field label="Required Time (h)">
+            <input style={{...iSt,padding:"7px 10px",fontSize:13}} type="number" min="0" step="0.5" value={f.requiredTime||""} onChange={e=>set("requiredTime",e.target.value)} placeholder="e.g. 2"/>
           </Field>
         </div>
       )}
 
       <div style={{marginTop:2,marginBottom:14}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <span style={{fontSize:11,fontWeight:700,color:"#8a8580",textTransform:"uppercase",letterSpacing:.5}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <span style={{fontSize:11,fontWeight:700,color:"#64748B",textTransform:"uppercase",letterSpacing:.5}}>
             Subtasks{hasSubs?` (${f.subtasks.length})`:""}
           </span>
           <button onClick={addSub} style={{...btnS,padding:"4px 12px",fontSize:12,borderRadius:8}}>+ Subtask</button>
         </div>
 
         {hasSubs&&(
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{display:"flex",flexDirection:"column",gap:3}}>
             {f.subtasks.map((s,i)=>(
-              <div key={s.id} style={{border:"1px solid #e8e5e0",borderRadius:10,padding:"10px 12px",background:"#fafaf8"}}>
-                <div style={{display:"flex",gap:8,marginBottom:8,alignItems:"center"}}>
-                  <input style={{...iSt,flex:1,fontSize:13,padding:"7px 9px"}} value={s.name} onChange={e=>updateSub(i,"name",e.target.value)} placeholder="Subtask name…"/>
-                  <button onClick={()=>removeSub(i)} style={{background:"none",border:"none",cursor:"pointer",fontSize:15,color:"#c4bfb6",padding:"0 4px",flexShrink:0}}>✕</button>
+              <div key={s.id} style={{display:"flex",gap:6,alignItems:"center",padding:"5px 0"}}>
+                <input style={{...iSt,flex:1,minWidth:0,fontSize:12,padding:"6px 8px"}} value={s.name} onChange={e=>updateSub(i,"name",e.target.value)} placeholder="Subtask name…"/>
+                <input style={{...iSt,width:52,fontSize:12,padding:"6px 6px",textAlign:"center",flexShrink:0}} type="number" min="0" step="0.5" value={s.requiredTime||""} onChange={e=>updateSub(i,"requiredTime",e.target.value)} placeholder="hours"/>
+                <div style={{display:"flex",gap:1,alignItems:"center",flexShrink:0}}>
+                  {[["today","T"],["this week","W"],["this month","M"]].map(([period,lbl])=>{
+                    const on=(s.timeToDo||"")===period;
+                    return(
+                      <button key={period} type="button" onClick={()=>updateSub(i,"timeToDo",on?"":period)}
+                        title={period}
+                        style={{display:"flex",flexDirection:"column",alignItems:"center",gap:1,
+                          background:"none",border:"none",cursor:"pointer",padding:"1px 3px"}}>
+                        <div style={{width:13,height:13,borderRadius:3,
+                          border:`1.5px solid ${on?"#0070C0":"#CBD5E1"}`,
+                          background:on?"#0070C0":"transparent",
+                          display:"flex",alignItems:"center",justifyContent:"center",transition:"all .12s"}}>
+                          {on&&<svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+                            <path d="M1.5 4L3 5.5L6.5 2" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>}
+                        </div>
+                        <span style={{fontSize:8,color:on?"#0070C0":"#CBD5E1",fontWeight:on?700:400,lineHeight:1}}>{lbl}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                  <div>
-                    <label style={{fontSize:10,fontWeight:600,color:"#a09a90",display:"block",marginBottom:3}}>REQUIRED TIME (H)</label>
-                    <input style={{...iSt,fontSize:12,padding:"6px 8px"}} type="number" min="0" step="0.5" value={s.requiredTime||""} onChange={e=>updateSub(i,"requiredTime",e.target.value)} placeholder="e.g. 1"/>
-                  </div>
-                  <div>
-                    <label style={{fontSize:10,fontWeight:600,color:"#a09a90",display:"block",marginBottom:3}}>TIME TO DO</label>
-                    <select style={{...selSt,fontSize:12,padding:"6px 8px"}} value={s.timeToDo||""} onChange={e=>updateSub(i,"timeToDo",e.target.value)}>
-                      <option value="">None</option>
-                      {TTD.map(t=><option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                </div>
+                <button onClick={()=>removeSub(i)} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#CBD5E1",padding:"0 2px",flexShrink:0,lineHeight:1}}>✕</button>
               </div>
             ))}
-            <div style={{fontSize:12,color:"#a09a90",display:"flex",gap:14,marginTop:2}}>
-              <span>Total: <b style={{color:"#6b6560"}}>{fmtHour(sumReqTime(f.subtasks))||"–"}h</b></span>
-              <span>Time to do: <b style={{color:"#6b6560"}}>{maxTtd(f.subtasks)||"none"}</b></span>
+            <div style={{fontSize:12,color:"#94A3B8",display:"flex",gap:14,marginTop:2}}>
+              <span>Total: <b style={{color:"#64748B"}}>{fmtHour(sumReqTime(f.subtasks))||"–"}h</b></span>
+              <span>Time to do: <b style={{color:"#64748B"}}>{maxTtd(f.subtasks)||"none"}</b></span>
             </div>
           </div>
         )}
       </div>
 
-      <div style={{display:"flex",gap:10,justifyContent:"flex-end",alignItems:"center",borderTop:"1px solid #f0ece6",paddingTop:16}}>
+      <div style={{display:"flex",gap:10,justifyContent:"flex-end",alignItems:"center",borderTop:"1px solid #DCE8F0",paddingTop:16}}>
         {task&&onDelete&&(
-          <button style={{...btnS,color:"#c94040",marginRight:"auto"}} onClick={()=>onDelete(task.id)}>Delete</button>
+          <button style={{...btnS,color:"#DC2626",marginRight:"auto"}} onClick={()=>onDelete(task.id)}>Delete</button>
         )}
         <button style={btnS} onClick={onClose}>Cancel</button>
         <button style={{...btnP,opacity:valid?1:.4}} onClick={()=>valid&&onSave(f)} disabled={!valid}>Save</button>
@@ -822,7 +857,6 @@ function TaskForm({task,onSave,onDelete,onClose}){
 function EditTodoModal({open,onClose,period,tasks,todoLists,todoOrder,onUpdate}){
   const[lists,setLists]=useState({});
   const[orders,setOrders]=useState({});
-  const[addOpen,setAddOpen]=useState(true);
   const[addTab,setAddTab]=useState("");
   const[dragIdx,setDragIdx]=useState(null);
   const[dragOver,setDragOver]=useState(null);
@@ -838,9 +872,8 @@ function EditTodoModal({open,onClose,period,tasks,todoLists,todoOrder,onUpdate})
       "this week":[...(todoOrder["this week"]||[])],
       "this month":[...(todoOrder["this month"]||[])]
     });
-    setAddOpen(true);
     // default tab for each period
-    setAddTab(period==="today"?"today":period==="this week"?"this week":"this month");
+    setAddTab(period==="today"?"week":period==="this week"?"month":"");
   },[open]);
 
   const allItems=useMemo(()=>buildTodoItems(tasks),[tasks]);
@@ -852,14 +885,13 @@ function EditTodoModal({open,onClose,period,tasks,todoLists,todoOrder,onUpdate})
   // Tabs config per period
   const tabsConfig={
     "today":[
-      {key:"today",   label:"today",      filter:it=>it.timeToDo==="today"},
-      {key:"week",    label:"this week",   filter:it=>it.timeToDo==="this week"},
-      {key:"others",  label:"others",      filter:it=>it.timeToDo!=="today"&&it.timeToDo!=="this week"}
-    ],
-    "this week":[
       {key:"week",    label:"this week",   filter:it=>it.timeToDo==="this week"},
       {key:"month",   label:"this month",  filter:it=>it.timeToDo==="this month"},
       {key:"others",  label:"others",      filter:it=>it.timeToDo!=="this week"&&it.timeToDo!=="this month"}
+    ],
+    "this week":[
+      {key:"month",   label:"this month",  filter:it=>it.timeToDo==="this month"},
+      {key:"others",  label:"others",      filter:it=>it.timeToDo!=="this month"}
     ],
     "this month":null
   };
@@ -880,7 +912,6 @@ function EditTodoModal({open,onClose,period,tasks,todoLists,todoOrder,onUpdate})
     else push(ref,"this month");
     setLists(nl);
     setOrders(no);
-    setAddOpen(false);
   };
 
   const removeItem=ref=>{
@@ -919,44 +950,45 @@ function EditTodoModal({open,onClose,period,tasks,todoLists,todoOrder,onUpdate})
 
   return(
     <Modal open={open} onClose={onClose} title={`Edit — ${period}`} width={500}>
-      <div style={{marginBottom:16}}>
+      <div style={{marginBottom:0}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <span style={{fontSize:13,fontWeight:600,color:"#6b6560"}}>Tasks ({displayRefs.length})</span>
-          <button style={{...btnS,padding:"6px 14px",fontSize:12}} onClick={()=>setAddOpen(a=>!a)}>+ Add</button>
+          <span style={{fontSize:13,fontWeight:600,color:"#64748B"}}>Tasks ({displayRefs.length})</span>
+          <div style={{display:"flex",gap:8}}>
+            <button style={{...btnS,padding:"5px 14px",fontSize:12}} onClick={onClose}>Cancel</button>
+            <button style={{...btnP,padding:"5px 14px",fontSize:12}} onClick={()=>{onUpdate(lists,orders);onClose();}}>Save</button>
+          </div>
         </div>
 
-        {addOpen&&(
-          <div style={{border:"1px solid #e8e5e0",borderRadius:10,marginBottom:12,background:"#fafaf8",overflow:"hidden"}}>
-            {/* Tabs for today / this week periods */}
-            {tabs&&(
-              <div style={{display:"flex",borderBottom:"1px solid #e8e5e0",background:"#f5f4f1"}}>
-                {tabs.map(t=>(
-                  <button key={t.key} onClick={()=>setAddTab(t.key)} style={{
-                    flex:1,padding:"7px 4px",fontSize:11,fontWeight:addTab===t.key?700:500,
-                    color:addTab===t.key?"#1a1714":"#8a8580",
-                    background:addTab===t.key?"#fff":"transparent",
-                    border:"none",borderBottom:addTab===t.key?"2px solid #c96442":"2px solid transparent",
-                    cursor:"pointer",whiteSpace:"nowrap"
-                  }}>{t.label}<span style={{marginLeft:4,fontWeight:400,color:"#b0aaa4",fontSize:10}}>
-                    {allAvailable.filter(t.filter).length}
-                  </span></button>
-                ))}
-              </div>
-            )}
-            <div style={{padding:10,maxHeight:200,overflow:"auto"}}>
-              {available.length===0
-                ?<div style={{fontSize:13,color:"#a09a90",textAlign:"center",padding:"12px 0"}}>No tasks to add</div>
-                :available.map(it=>(
-                  <div key={it.ref} onClick={()=>addItem(it.ref)} style={{padding:"8px 10px",borderRadius:8,cursor:"pointer",fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center"}}
-                    onMouseEnter={e=>e.currentTarget.style.background="#f0ece6"}
-                    onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-                    <span style={{color:"#1a1714"}}>{it.displayName}</span>
-                    <span style={{fontSize:11,color:"#8a8580"}}>{it.project||""}</span>
-                  </div>
-                ))}
+        <div style={{border:"1px solid #E2E8F0",borderRadius:10,marginBottom:12,background:"#FFFFFF",overflow:"hidden"}}>
+          {/* Tabs for today / this week periods */}
+          {tabs&&(
+            <div style={{display:"flex",borderBottom:"1px solid #E2E8F0",background:"#DCE8F0"}}>
+              {tabs.map(t=>(
+                <button key={t.key} onClick={()=>setAddTab(t.key)} style={{
+                  flex:1,padding:"7px 4px",fontSize:11,fontWeight:addTab===t.key?700:500,
+                  color:addTab===t.key?"#1E293B":"#64748B",
+                  background:addTab===t.key?"#fff":"transparent",
+                  border:"none",borderBottom:addTab===t.key?"2px solid #0070C0":"2px solid transparent",
+                  cursor:"pointer",whiteSpace:"nowrap"
+                }}>{t.label}<span style={{marginLeft:4,fontWeight:400,color:"#94A3B8",fontSize:10}}>
+                  {allAvailable.filter(t.filter).length}
+                </span></button>
+              ))}
             </div>
+          )}
+          <div style={{padding:10,maxHeight:200,overflow:"auto"}}>
+            {available.length===0
+              ?<div style={{fontSize:13,color:"#94A3B8",textAlign:"center",padding:"12px 0"}}>No tasks to add</div>
+              :available.map(it=>(
+                <div key={it.ref} onClick={()=>addItem(it.ref)} style={{padding:"8px 10px",borderRadius:8,cursor:"pointer",fontSize:13,display:"flex",justifyContent:"space-between",alignItems:"center"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="#DCE8F0"}
+                  onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                  <span style={{color:"#1E293B"}}>{it.displayName}</span>
+                  <span style={{fontSize:11,color:"#64748B"}}>{it.project||""}</span>
+                </div>
+              ))}
           </div>
-        )}
+        </div>
 
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
           {displayRefs.map((ref,idx)=>{
@@ -967,20 +999,15 @@ function EditTodoModal({open,onClose,period,tasks,todoLists,todoOrder,onUpdate})
                 onDragOver={e=>{e.preventDefault();setDragOver(idx);}}
                 onDrop={()=>{if(dragIdx!=null&&dragIdx!==idx)moveItem(dragIdx,idx);setDragIdx(null);setDragOver(null);}}
                 onDragEnd={()=>{setDragIdx(null);setDragOver(null);}}
-                style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:dragOver===idx?"#f5f0ea":"#fff",border:"1px solid #e8e5e0",borderRadius:10,cursor:"grab"}}>
-                <span style={{color:"#c4bfb6",fontSize:15,userSelect:"none"}}>⠿</span>
-                <span style={{flex:1,fontSize:13,fontWeight:500,color:"#1a1714",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{it?it.displayName:ref}</span>
-                {it&&it.project&&<span style={{fontSize:11,color:"#8a8580",flexShrink:0}}>{it.project}</span>}
-                <button onClick={()=>removeItem(ref)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#c4bfb6",padding:2,flexShrink:0}}>✕</button>
+                style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:dragOver===idx?"#EFF6FF":"#fff",border:"1px solid #E2E8F0",borderRadius:10,cursor:"grab"}}>
+                <span style={{color:"#CBD5E1",fontSize:15,userSelect:"none"}}>⠿</span>
+                <span style={{flex:1,fontSize:13,fontWeight:500,color:"#1E293B",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{it?it.displayName:ref}</span>
+                {it&&it.project&&<span style={{fontSize:11,color:"#64748B",flexShrink:0}}>{it.project}</span>}
+                <button onClick={()=>removeItem(ref)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#CBD5E1",padding:2,flexShrink:0}}>✕</button>
               </div>
             );
           })}
         </div>
-      </div>
-
-      <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
-        <button style={btnS} onClick={onClose}>Cancel</button>
-        <button style={btnP} onClick={()=>{onUpdate(lists,orders);onClose();}}>Save</button>
       </div>
     </Modal>
   );
@@ -997,7 +1024,7 @@ function ImportExportModal({open,onClose,data,onImport}){
     <Modal open={open} onClose={onClose} title="Import / Export" width={520}>
       <div style={{display:"flex",gap:6,marginBottom:16}}>
         {["export","import"].map(m=>(
-          <button key={m} onClick={()=>setMode(m)} style={{...btnS,padding:"6px 18px",fontSize:13,background:mode===m?"#1a1714":"#f0ece6",color:mode===m?"#fff":"#4a4540"}}>
+          <button key={m} onClick={()=>setMode(m)} style={{...btnS,padding:"6px 18px",fontSize:13,background:mode===m?"#1E293B":"#DCE8F0",color:mode===m?"#fff":"#475569"}}>
             {m==="export"?"Export":"Import"}
           </button>
         ))}
@@ -1251,6 +1278,29 @@ function App(){
     })}));
   };
 
+  const updateSubTimeToDo=(taskId,subId,newTtd)=>{
+    update(d=>{
+      const tasks=[...d.tasks];
+      const idx=tasks.findIndex(t=>t.id===taskId);
+      if(idx<0)return d;
+      const oldTask=tasks[idx];
+      const newTask={...oldTask,subtasks:oldTask.subtasks.map(s=>s.id===subId?{...s,timeToDo:newTtd}:s)};
+      tasks[idx]=newTask;
+      const lists={
+        today:[...(d.todoLists.today||[])],
+        "this week":[...(d.todoLists["this week"]||[])],
+        "this month":[...(d.todoLists["this month"]||[])]
+      };
+      const orders={
+        today:[...(d.todoOrder.today||[])],
+        "this week":[...(d.todoOrder["this week"]||[])],
+        "this month":[...(d.todoOrder["this month"]||[])]
+      };
+      const{todoLists,todoOrder}=syncRefs(oldTask,newTask,lists,orders);
+      return{...d,tasks,todoLists,todoOrder};
+    });
+  };
+
   const getTodoItems=period=>{
     const{tasks,todoLists,todoOrder}=data;
     const ids=todoLists[period]||[];
@@ -1282,18 +1332,18 @@ function App(){
   const completedTasks=tasks.filter(t=>taskIsComplete(t));
 
   return(
-    <div style={{maxWidth:640,margin:"0 auto",minHeight:"100vh",background:"#fafaf8",position:"relative",paddingBottom:80}}>
-      <div style={{padding:"18px 20px 0",display:"flex",borderBottom:"1px solid #e8e5e0",position:"sticky",top:0,background:"#fafaf8",zIndex:50,alignItems:"flex-end"}}>
+    <div style={{maxWidth:640,margin:"0 auto",minHeight:"100vh",background:"#FFFFFF",position:"relative",paddingBottom:80}}>
+      <div style={{padding:"18px 20px 0",display:"flex",borderBottom:"1px solid #E2E8F0",position:"sticky",top:0,background:"#FFFFFF",zIndex:50,alignItems:"flex-end"}}>
         <div style={{display:"flex",flex:1}}>
         {[["todo","To do"],["all","All tasks"]].map(([tab,label])=>(
           <button key={tab} onClick={()=>setMainTab(tab)} style={{
             background:"none",
             border:"none",
-            borderBottom:mainTab===tab?"2.5px solid #c96442":"2.5px solid transparent",
+            borderBottom:mainTab===tab?"2.5px solid #0070C0":"2.5px solid transparent",
             padding:"7px 20px 11px",
             fontSize:15,
             fontWeight:mainTab===tab?700:500,
-            color:mainTab===tab?"#1a1714":"#9a9590",
+            color:mainTab===tab?"#1E293B":"#94A3B8",
             cursor:"pointer"
           }}>{label}</button>
         ))}
@@ -1318,6 +1368,11 @@ function App(){
           }}>↻</span>
           <span>{syncStatus==='syncing'?'syncing…':syncStatus==='err'?'error':'synced'}</span>
         </button>
+        {/* Import / Export icon */}
+        <button onClick={()=>setShowImport(true)} title="Import / Export"
+          style={{marginBottom:10,marginRight:6,background:"none",border:"none",cursor:"pointer",padding:"2px 4px",display:"flex",alignItems:"center",color:"#94A3B8"}}>
+          <SvgIcon type="export" color="#94A3B8" size={15}/>
+        </button>
       </div>
 
       {/* ═══ TO DO ═══ */}
@@ -1327,7 +1382,7 @@ function App(){
             <div style={{display:"flex",gap:6}}>
               {TTD.map(t=><Pill key={t} active={todoSub===t} onClick={()=>setTodoSub(t)}>{t}</Pill>)}
             </div>
-            <button onClick={()=>setShowEditTodo(true)} style={{background:"none",border:"1px solid #e0dcd6",borderRadius:8,padding:"5px 14px",fontSize:12,fontWeight:600,color:"#6b6560",cursor:"pointer"}}>
+            <button onClick={()=>setShowEditTodo(true)} style={{background:"none",border:"1px solid #D1D9E6",borderRadius:8,padding:"5px 14px",fontSize:12,fontWeight:600,color:"#64748B",cursor:"pointer"}}>
               Edit
             </button>
           </div>
@@ -1339,7 +1394,7 @@ function App(){
               const done=items.filter(it=>it.completedDate&&isInPeriod(it.completedDate,todoSub));
 
               if(!pending.length&&!done.length)return(
-                <div style={{textAlign:"center",padding:"52px 20px",color:"#b0aaa4"}}>
+                <div style={{textAlign:"center",padding:"52px 20px",color:"#94A3B8"}}>
                   <div style={{fontSize:36,marginBottom:10}}>✨</div>
                   <div style={{fontSize:14,fontWeight:500}}>No tasks for {todoSub}</div>
                   <div style={{fontSize:12,marginTop:4}}>Click Edit to add tasks</div>
@@ -1350,7 +1405,7 @@ function App(){
                 <>
                   {pending.length>0&&(
                     <div style={{marginBottom:22}}>
-                      <SectionLabel count={`${pending.length} · ${sumRequiredTime(pending)}h`}>Pending</SectionLabel>
+                      <SectionLabel>Pending</SectionLabel>
                       <div style={{display:"flex",flexDirection:"column",gap:8}}>
                         {pending.map(it=>(
                           <TodoCard key={it._ref} item={it} showCheck checked={false}
@@ -1363,7 +1418,7 @@ function App(){
 
                   {done.length>0&&(
                     <div>
-                      <SectionLabel count={`${done.length} · ${sumRequiredTime(done)}h`}>Completed</SectionLabel>
+                      <SectionLabel>Completed</SectionLabel>
                       <div style={{display:"flex",flexDirection:"column",gap:8}}>
                         {done.map(it=>(
                           <TodoCard key={it._ref} item={it} showCheck checked dimmed
@@ -1383,50 +1438,51 @@ function App(){
       {/* ═══ ALL TASKS ═══ */}
       {mainTab==="all"&&(
         <div>
-          <div style={{padding:"12px 20px 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{display:"flex",gap:6}}>
+          <div style={{padding:"12px 20px 0",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+            <div style={{display:"flex",gap:6,flexShrink:0}}>
               <Pill active={allSub==="active"} onClick={()=>setAllSub("active")}>Active</Pill>
               <Pill active={allSub==="completed"} onClick={()=>setAllSub("completed")}>Completed</Pill>
             </div>
-            <button onClick={()=>setShowImport(true)} style={{background:"none",border:"1px solid #e0dcd6",borderRadius:8,padding:"5px 14px",fontSize:12,fontWeight:600,color:"#6b6560",cursor:"pointer"}}>
-              Import / Export
-            </button>
+
+            {allSub==="active"&&(
+              <div style={{display:"flex",gap:2,alignItems:"center"}}>
+                {["importance","project"].map(s=>(
+                  <button key={s} onClick={()=>{setSortBy(s);setShowMatrix(false);}} style={{
+                    background:"none",border:"none",
+                    padding:"4px 7px",fontSize:11,cursor:"pointer",
+                    fontWeight:sortBy===s&&!showMatrix?700:400,
+                    color:sortBy===s&&!showMatrix?"#0070C0":"#94A3B8"
+                  }}>{s}</button>
+                ))}
+                <button onClick={()=>setShowMatrix(v=>!v)} style={{
+                  background:"none",border:"none",
+                  padding:"4px 7px",fontSize:11,cursor:"pointer",
+                  fontWeight:showMatrix?700:400,
+                  color:showMatrix?"#0070C0":"#94A3B8"
+                }}>Matrix</button>
+              </div>
+            )}
+
+            {allSub==="completed"&&(
+              <div style={{display:"flex",gap:2,alignItems:"center"}}>
+                {["week","month"].map(v=>(
+                  <button key={v} onClick={()=>setCompView(v)} style={{
+                    background:"none",border:"none",
+                    padding:"4px 7px",fontSize:11,cursor:"pointer",
+                    fontWeight:compView===v?700:400,
+                    color:compView===v?"#0070C0":"#94A3B8"
+                  }}>By {v}</button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div style={{padding:"14px 20px"}}>
             {allSub==="active"&&(
               <>
-                <div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
-                  <span style={{fontSize:11,color:"#a09a90",marginRight:2}}>Sort:</span>
-                  {["importance","urgency","deadline","project"].map(s=>(
-                    <button key={s} onClick={()=>{setSortBy(s);setShowMatrix(false);}} style={{
-                      background:sortBy===s&&!showMatrix?"#e8e0d6":"transparent",
-                      border:"1px solid",
-                      borderColor:sortBy===s&&!showMatrix?"#cfc8be":"#e8e5e0",
-                      borderRadius:99,
-                      padding:"4px 10px",
-                      fontSize:11,
-                      fontWeight:500,
-                      color:sortBy===s&&!showMatrix?"#4a4540":"#8a8580",
-                      cursor:"pointer"
-                    }}>{s}</button>
-                  ))}
-                  <button onClick={()=>setShowMatrix(v=>!v)} style={{
-                    marginLeft:"auto",
-                    background:showMatrix?"#1a1714":"#edeae4",
-                    color:showMatrix?"#fff":"#6b6560",
-                    border:"none",
-                    borderRadius:99,
-                    padding:"5px 12px",
-                    fontSize:11,
-                    fontWeight:700,
-                    cursor:"pointer"
-                  }}>Matrix</button>
-                </div>
-
                 {activeTasks.length===0
                   ?(
-                    <div style={{textAlign:"center",padding:"52px 20px",color:"#b0aaa4"}}>
+                    <div style={{textAlign:"center",padding:"52px 20px",color:"#94A3B8"}}>
                       <div style={{fontSize:36,marginBottom:10}}>📋</div>
                       <div style={{fontSize:14,fontWeight:500}}>No active tasks</div>
                     </div>
@@ -1444,10 +1500,10 @@ function App(){
                           });
                           return Object.entries(grouped).map(([project,items])=>(
                             <div key={project} style={{marginBottom:22}}>
-                              <SectionLabel count={items.length}>{project}</SectionLabel>
+                              <SectionLabel>{project}</SectionLabel>
                               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                                 {items.map(t=>(
-                                  <AllTaskCard key={t.id} task={t} onEdit={t=>{setEditTask(t);setShowForm(true);}} onToggleSub={toggleSubAll}/>
+                                  <AllTaskCard key={t.id} task={t} onEdit={t=>{setEditTask(t);setShowForm(true);}} onToggleSub={toggleSubAll} onSetTimeToDo={updateSubTimeToDo}/>
                                 ))}
                               </div>
                             </div>
@@ -1457,7 +1513,7 @@ function App(){
                       :(
                         <div style={{display:"flex",flexDirection:"column",gap:8}}>
                           {sortTasks(activeTasks,sortBy).map(t=>(
-                            <AllTaskCard key={t.id} task={t} onEdit={t=>{setEditTask(t);setShowForm(true);}} onToggleSub={toggleSubAll}/>
+                            <AllTaskCard key={t.id} task={t} onEdit={t=>{setEditTask(t);setShowForm(true);}} onToggleSub={toggleSubAll} onSetTimeToDo={updateSubTimeToDo}/>
                           ))}
                         </div>
                       )
@@ -1467,35 +1523,19 @@ function App(){
 
             {allSub==="completed"&&(
               <>
-                <div style={{display:"flex",gap:5,marginBottom:14}}>
-                  {["week","month"].map(v=>(
-                    <button key={v} onClick={()=>setCompView(v)} style={{
-                      background:compView===v?"#e8e0d6":"transparent",
-                      border:"1px solid",
-                      borderColor:compView===v?"#cfc8be":"#e8e5e0",
-                      borderRadius:99,
-                      padding:"4px 10px",
-                      fontSize:11,
-                      fontWeight:500,
-                      color:compView===v?"#4a4540":"#8a8580",
-                      cursor:"pointer"
-                    }}>By {v}</button>
-                  ))}
-                </div>
-
                 {completedTasks.length===0
                   ?(
-                    <div style={{textAlign:"center",padding:"52px 20px",color:"#b0aaa4"}}>
+                    <div style={{textAlign:"center",padding:"52px 20px",color:"#94A3B8"}}>
                       <div style={{fontSize:36,marginBottom:10}}>🎉</div>
                       <div style={{fontSize:14,fontWeight:500}}>No completed tasks yet</div>
                     </div>
                   )
                   :groupCompleted(completedTasks,compView).map(([key,items])=>(
                     <div key={key} style={{marginBottom:22}}>
-                      <SectionLabel count={items.length}>{fmtGroupLabel(key,compView)}</SectionLabel>
+                      <SectionLabel>{fmtGroupLabel(key,compView)}</SectionLabel>
                       <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:10}}>
                         {items.map(t=>(
-                          <AllTaskCard key={t.id} task={t} onEdit={t=>{setEditTask(t);setShowForm(true);}} onToggleSub={toggleSubAll}/>
+                          <AllTaskCard key={t.id} task={t} onEdit={t=>{setEditTask(t);setShowForm(true);}} onToggleSub={toggleSubAll} onSetTimeToDo={updateSubTimeToDo}/>
                         ))}
                       </div>
                     </div>
@@ -1515,13 +1555,13 @@ function App(){
         width:52,
         height:52,
         borderRadius:16,
-        background:"#c96442",
+        background:"#0070C0",
         color:"#fff",
         border:"none",
         fontSize:28,
         cursor:"pointer",
         lineHeight:1,
-        boxShadow:"0 4px 20px rgba(201,100,66,.38)",
+        boxShadow:"0 4px 20px rgba(37,99,235,.35)",
         display:"flex",
         alignItems:"center",
         justifyContent:"center",

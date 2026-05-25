@@ -4,8 +4,8 @@
   "description": "Personal task manager",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f5f4f1",
-  "theme_color": "#c96442",
+  "background_color": "#EEF2F8",
+  "theme_color": "#2563EB",
   "orientation": "portrait-primary",
   "icons": [
     {
